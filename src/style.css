@@ -1,0 +1,263 @@
+/* ── Reset & Tokens ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #222638;
+  --border: #2e3248;
+  --text: #e8eaf6;
+  --text2: #8b90b8;
+  --green: #14f195;
+  --red: #f1145a;
+  --purple: #9945ff;
+  --yellow: #f6c90e;
+  --radius: 16px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ── */
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 0 env(safe-area-inset-bottom, 24px);
+}
+
+/* ── Splash ── */
+.splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  gap: 16px;
+  color: var(--text2);
+  font-size: 18px;
+}
+.splash .logo { font-size: 64px; animation: pulse 1.5s infinite; }
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 12px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 17px;
+}
+.logo-row .logo { font-size: 22px; color: var(--purple); }
+
+.btn-icon {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-icon:active { opacity: 0.7; }
+.addr { font-family: monospace; font-size: 12px; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 12px 12px 0;
+  padding: 16px;
+}
+.card.loading { min-height: 100px; }
+
+.card-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text2);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ── Price Card ── */
+.price-big {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.price-hint {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 8px;
+}
+
+/* ── Skeleton ── */
+.skeleton {
+  height: 40px;
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-green { background: rgba(20,241,149,.15); color: var(--green); }
+.badge-red   { background: rgba(241,20,90,.15);  color: var(--red); }
+.badge-yellow { background: rgba(246,201,14,.15); color: var(--yellow); }
+
+/* ── Stat rows ── */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text2);
+}
+.stat-row:last-of-type { border-bottom: none; }
+.stat-row strong { color: var(--text); font-weight: 600; }
+.green { color: var(--green); }
+.red   { color: var(--red); }
+
+/* ── Sell order rows ── */
+.order-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.order-row:last-child { border-bottom: none; }
+.order-label { display: block; font-size: 14px; font-weight: 600; }
+.order-amount { font-size: 12px; color: var(--text2); }
+
+/* ── Action Card ── */
+.action-card { background: var(--surface2); }
+.dca-amount { font-size: 15px; color: var(--text2); margin-bottom: 14px; }
+.dca-amount strong { color: var(--text); }
+.hint { font-size: 13px; color: var(--text2); margin-bottom: 14px; }
+
+/* ── Buttons ── */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 10px;
+  transition: opacity .15s;
+}
+.btn:active { opacity: 0.8; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary  { background: var(--purple); color: #fff; }
+.btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.btn-danger   { background: rgba(241,20,90,.12); color: var(--red); border: 1px solid rgba(241,20,90,.3); }
+.btn-ghost    { background: transparent; color: var(--text2); font-size: 13px; margin-top: 0; width: auto; }
+
+.btn.loading { animation: pulse 1s infinite; }
+
+/* ── History ── */
+.hist-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  gap: 8px;
+}
+.hist-row:last-child { border-bottom: none; }
+.hist-date { color: var(--text2); white-space: nowrap; }
+.hist-details { text-align: right; }
+.hist-price { color: var(--text2); display: block; font-size: 11px; }
+
+/* ── Settings ── */
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  gap: 16px;
+}
+.setting-row label { color: var(--text2); flex: 1; }
+.setting-row input[type="number"] {
+  width: 80px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 6px 10px;
+  text-align: right;
+}
+.setting-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--purple);
+  cursor: pointer;
+}
+
+/* ── Empty ── */
+.empty { color: var(--text2); font-size: 13px; text-align: center; padding: 8px 0; }
+
+/* ── Footer ── */
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 12px 32px;
+}
+.footer-note {
+  font-size: 11px;
+  color: var(--text2);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ── Animations ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
