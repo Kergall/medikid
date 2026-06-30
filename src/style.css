@@ -252,6 +252,101 @@ html, body {
   line-height: 1.4;
 }
 
+/* ── Wallet bar ── */
+.wallet-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 12px 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.wallet-ok      { background: rgba(20,241,149,.08); color: var(--green); border: 1px solid rgba(20,241,149,.2); }
+.wallet-missing { background: rgba(241,20,90,.08);  color: var(--red);   border: 1px solid rgba(241,20,90,.2); }
+.auto-badge {
+  background: var(--purple);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+/* ── Setup card ── */
+.setup-card { }
+.setup-info {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text2);
+  margin: 14px 0 6px;
+}
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+.input-row input { flex: 1; }
+.btn-eye {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+}
+input[type="text"]:focus,
+input[type="password"]:focus {
+  border-color: var(--purple);
+}
+
+/* ── Back button ── */
+.btn-back {
+  background: none;
+  border: none;
+  color: var(--purple);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.btn-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: var(--text2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.hint-small {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
 /* ── Animations ── */
 @keyframes pulse {
   0%, 100% { opacity: 1; }

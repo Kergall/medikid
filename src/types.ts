@@ -1,5 +1,5 @@
 export interface DCAEntry {
-  date: string;           // YYYY-MM-DD
+  date: string;
   amountUSD: number;
   solPriceUSD: number;
   solBoughtLamports: number;
@@ -10,18 +10,20 @@ export interface SellOrder {
   accountPubkey: string;
   solLamports: number;
   targetPriceUSD: number;
-  targetPct: number;      // 10 | 20 | 40 | 60
+  targetPct: number;
   status: 'active' | 'filled' | 'cancelled';
 }
+
+export type WalletMode = 'none' | 'phantom' | 'local';
 
 export interface AppState {
   // Position
   totalSOLBoughtLamports: number;
-  totalUSDCSpentMicro: number;   // USDC * 1e6
+  totalUSDCSpentMicro: number;
   averageBuyPriceUSD: number;
 
   // DCA
-  lastDCADate: string | null;    // YYYY-MM-DD
+  lastDCADate: string | null;
   dcaEnabled: boolean;
   dcaHistory: DCAEntry[];
 
@@ -29,8 +31,12 @@ export interface AppState {
   sellOrders: SellOrder[];
 
   // Settings
-  baseAmountUSD: number;         // default 10
+  baseAmountUSD: number;
   rpcEndpoint: string;
+
+  // Wallet
+  walletMode: WalletMode;
+  autoExecute: boolean;  // true = sign without PIN on open
 }
 
 export interface SolanaProvider {

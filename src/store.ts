@@ -12,6 +12,8 @@ const DEFAULT_STATE: AppState = {
   sellOrders: [],
   baseAmountUSD: 10,
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
+  walletMode: 'none',
+  autoExecute: false,
 };
 
 export function loadState(): AppState {

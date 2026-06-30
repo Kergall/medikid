@@ -1,6 +1,8 @@
 import type { SolanaProvider } from './types';
 
-export function getProvider(): SolanaProvider | null {
+// ─── Phantom (mode manuel) ───────────────────────────────────────────────────
+
+export function getPhantomProvider(): SolanaProvider | null {
   return window.solana ?? null;
 }
 
@@ -8,33 +10,28 @@ export function isPhantomAvailable(): boolean {
   return Boolean(window.solana?.isPhantom);
 }
 
-export async function connectWallet(): Promise<string> {
-  const provider = getProvider();
-  if (!provider) {
-    // On mobile without Phantom in-app browser → deep link
-    const currentUrl = encodeURIComponent(window.location.href);
-    window.location.href = `https://phantom.app/ul/browse/${currentUrl}`;
+export async function connectPhantom(): Promise<string> {
+  const p = getPhantomProvider();
+  if (!p) {
+    const url = encodeURIComponent(window.location.href);
+    window.location.href = `https://phantom.app/ul/browse/${url}`;
     throw new Error('Redirection vers Phantom…');
   }
-  const { publicKey } = await provider.connect();
+  const { publicKey } = await p.connect();
   return publicKey.toBase58();
 }
 
-export async function disconnectWallet(): Promise<void> {
-  const provider = getProvider();
-  if (provider) await provider.disconnect();
+export async function disconnectPhantom(): Promise<void> {
+  await getPhantomProvider()?.disconnect();
 }
 
-export async function signAndSend(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  transaction: any,
-): Promise<string> {
-  const provider = getProvider();
-  if (!provider) throw new Error('Wallet non connecté');
-  const { signature } = await provider.signAndSendTransaction(transaction);
+export async function phantomSignAndSend(tx: unknown): Promise<string> {
+  const p = getPhantomProvider();
+  if (!p) throw new Error('Phantom non disponible');
+  const { signature } = await p.signAndSendTransaction(tx);
   return signature;
 }
 
-export function walletPublicKey(): string | null {
+export function phantomPublicKey(): string | null {
   return window.solana?.publicKey?.toBase58() ?? null;
 }
