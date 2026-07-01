@@ -19,7 +19,7 @@ import {
   fetchOpenOrders,
 } from './jupiter';
 import { Keypair } from '@solana/web3.js';
-import { keypairFromBase58, signAndSendLocal, getWalletSolLamports } from './signer';
+import { keypairFromBase58, signAndSendLocal, getWalletSolLamports, getWalletUsdcMicro } from './signer';
 import { encryptKey, decryptKey, exportAutoKey, importAutoKey, decryptWithAutoKey } from './crypto';
 import {
   saveEncryptedKey, loadEncryptedKey,
@@ -554,18 +554,24 @@ async function handleCancelAllOrders(): Promise<void> {
 async function handleReadWallet(): Promise<void> {
   if (!walletAddress) { alert('Configure d\'abord le wallet.'); return; }
   const el = document.getElementById('reconResult');
-  if (el) el.textContent = '⏳ Lecture du solde…';
+  if (el) el.textContent = '⏳ Lecture du solde du wallet bot…';
   try {
-    const lamports = await getWalletSolLamports(walletAddress, state.rpcEndpoint);
+    const [lamports, usdcMicro] = await Promise.all([
+      getWalletSolLamports(walletAddress, state.rpcEndpoint),
+      getWalletUsdcMicro(walletAddress, state.rpcEndpoint).catch(() => 0),
+    ]);
     const sol = lamports / LAMPORTS_PER_SOL;
+    const usdc = usdcMicro / USDC_DECIMALS;
     // Suggest position = balance minus a small fee reserve.
     const suggested = Math.max(0, sol - 0.02);
     const inp = document.getElementById('inputSolHeld') as HTMLInputElement | null;
     if (inp && suggested > 0) inp.value = suggested.toFixed(4);
     if (el) {
-      el.textContent =
-        `Solde wallet : ${fmt(sol, 4)} SOL. Suggestion pour le bot : ${fmt(suggested, 4)} SOL ` +
-        `(0,02 SOL gardés pour les frais). Ajuste si besoin, puis Applique.`;
+      el.innerHTML =
+        `<strong>Wallet bot ${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)}</strong><br>` +
+        `• SOL libre : <strong>${fmt(sol, 4)} SOL</strong><br>` +
+        `• USDC : <strong>${fmt(usdc, 2)} USDC</strong><br>` +
+        `Suggestion SOL pour le bot : ${fmt(suggested, 4)} (0,02 gardés pour les frais).`;
     }
   } catch (e) {
     if (el) el.textContent = `Erreur lecture wallet : ${(e as Error).message}`;
@@ -623,7 +629,15 @@ async function handleReplaceSellOrders(): Promise<void> {
     // Place fresh orders for the full position
     const specs = buildSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
     const placedAccounts: string[] = [];
+    const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
+      // Safety: never place a sell target at/below market — it would fill
+      // instantly at a loss. Skip such orders.
+      if (marketPrice > 0 && spec.targetPriceUSD <= marketPrice * 1.005) {
+        console.warn(`Ordre +${spec.targetPct}% ignoré (cible ${spec.targetPriceUSD} ≤ marché ${marketPrice})`);
+        placedAccounts.push('');
+        continue;
+      }
       try {
         const { tx, orderAccount } = await buildLimitOrderTransaction(spec, pubkey);
         await signAndSendLocal(tx, keypair, state.rpcEndpoint);
@@ -810,7 +824,15 @@ async function handleDCA(): Promise<void> {
     // 6. Place new sell orders
     const specs = buildSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
     const placedAccounts: string[] = [];
+    const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
+      // Safety: never place a sell target at/below market — it would fill
+      // instantly at a loss. Skip such orders.
+      if (marketPrice > 0 && spec.targetPriceUSD <= marketPrice * 1.005) {
+        console.warn(`Ordre +${spec.targetPct}% ignoré (cible ${spec.targetPriceUSD} ≤ marché ${marketPrice})`);
+        placedAccounts.push('');
+        continue;
+      }
       try {
         const { tx, orderAccount } = await buildLimitOrderTransaction(spec, pubkey);
         await signAndSendLocal(tx, keypair, state.rpcEndpoint);

@@ -1,5 +1,6 @@
 import { Connection, Keypair, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import bs58 from 'bs58';
+import { USDC_MINT } from './strategy';
 
 // All RPC traffic goes through our same-origin Vercel proxy (/api/rpc),
 // which fans out server-side to keyless public Solana RPC providers.
@@ -20,6 +21,25 @@ export async function getWalletSolLamports(
 ): Promise<number> {
   const connection = new Connection(proxyRpcUrl(preferredRpc), 'confirmed');
   return connection.getBalance(new PublicKey(pubkey), 'confirmed');
+}
+
+// USDC balance (micro-USDC) held across the wallet's token accounts.
+export async function getWalletUsdcMicro(
+  pubkey: string,
+  preferredRpc: string,
+): Promise<number> {
+  const connection = new Connection(proxyRpcUrl(preferredRpc), 'confirmed');
+  const resp = await connection.getParsedTokenAccountsByOwner(
+    new PublicKey(pubkey),
+    { mint: new PublicKey(USDC_MINT) },
+  );
+  let total = 0;
+  for (const { account } of resp.value) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const amt = (account.data as any)?.parsed?.info?.tokenAmount?.amount;
+    if (amt) total += Number(amt);
+  }
+  return total;
 }
 
 export function keypairFromBase58(privateKeyBase58: string): Keypair {
