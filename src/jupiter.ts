@@ -1,8 +1,8 @@
 import { VersionedTransaction } from '@solana/web3.js';
 import { SOL_MINT, USDC_MINT, USDC_DECIMALS, LAMPORTS_PER_SOL } from './strategy';
 
-const QUOTE_API = 'https://quote-api.jup.ag/v6';
-const LIMIT_API = 'https://api.jup.ag/limit/v2';
+// Use same-origin proxy routes to avoid CORS issues on mobile networks
+const QUOTE_API = '/api';
 
 // ─── Swap (DCA buy: USDC → SOL) ───────────────────────────────────────────────
 
@@ -18,7 +18,7 @@ export async function getSwapQuote(
   slippageBps = 50,
 ): Promise<SwapQuote> {
   const inAmount = Math.floor(amountUSD * USDC_DECIMALS);
-  const url = new URL(`${QUOTE_API}/quote`);
+  const url = new URL(`${QUOTE_API}/quote`, location.href);
   url.searchParams.set('inputMint', USDC_MINT);
   url.searchParams.set('outputMint', SOL_MINT);
   url.searchParams.set('amount', String(inAmount));
@@ -40,7 +40,7 @@ export async function buildSwapTransaction(
   walletPubkey: string,
   priorityFeeLamports = 5000,
 ): Promise<VersionedTransaction> {
-  const res = await fetch(`${QUOTE_API}/swap`, {
+  const res = await fetch(`/api/swap`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -78,7 +78,7 @@ export async function buildLimitOrderTransaction(
     (spec.solLamports / LAMPORTS_PER_SOL) * spec.targetPriceUSD * USDC_DECIMALS,
   );
 
-  const res = await fetch(`${LIMIT_API}/createOrder`, {
+  const res = await fetch(`/api/limit-order`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -107,7 +107,7 @@ export async function buildCancelOrdersTransaction(
 ): Promise<VersionedTransaction | null> {
   if (orderAccounts.length === 0) return null;
 
-  const res = await fetch(`${LIMIT_API}/cancelOrders`, {
+  const res = await fetch(`/api/cancel-orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ owner: walletPubkey, orders: orderAccounts }),
@@ -122,9 +122,7 @@ export async function buildCancelOrdersTransaction(
 export async function fetchOpenOrders(
   walletPubkey: string,
 ): Promise<Array<{ publicKey: string; account: { inputMint: string } }>> {
-  const res = await fetch(
-    `${LIMIT_API}/openOrders?wallet=${walletPubkey}`,
-  );
+  const res = await fetch(`/api/open-orders?wallet=${walletPubkey}`);
   if (!res.ok) return [];
   return res.json();
 }
