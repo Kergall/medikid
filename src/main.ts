@@ -41,7 +41,7 @@ let currentTab: 'tableau' | 'dca' | 'reglages' = 'tableau';
 function fmt(n: number, d = 2): string {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
-const fmtUSD = (n: number) => `$${fmt(n)}`;
+const fmtUSD = (n: number) => `${fmt(n)} USDC`;
 const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${fmt(n, 1)}%`;
 const fmtSOL = (l: number) => `${fmt(l / LAMPORTS_PER_SOL, 4)} SOL`;
 
@@ -218,10 +218,10 @@ function renderTabDCA(): string {
           <span>Baisse ≥ −10%</span><strong>${fmtUSD(state.baseAmountUSD)}/jour</strong>
         </div>
         <div class="strategy-row ${priceData && !paused && dcaAmountUSD === 15 ? 'active-strat' : ''}">
-          <span>Baisse ≥ −15%</span><strong>15 $/jour</strong>
+          <span>Baisse ≥ −15%</span><strong>15 USDC/jour</strong>
         </div>
         <div class="strategy-row ${priceData && !paused && dcaAmountUSD === 20 ? 'active-strat' : ''}">
-          <span>Baisse ≥ −20%</span><strong>20 $/jour</strong>
+          <span>Baisse ≥ −20%</span><strong>20 USDC/jour</strong>
         </div>
         <div class="strategy-row ${paused ? 'active-strat strat-pause' : ''}">
           <span>Hausse &gt; +20%</span><strong>⏸ Pause</strong>
@@ -265,7 +265,7 @@ function renderTabSettings(): string {
     <div class="card">
       <div class="card-label">PARAMÈTRES DCA</div>
       <div class="setting-row">
-        <label>Montant DCA de base (USD)</label>
+        <label>Montant DCA de base (USDC)</label>
         <input type="number" id="inputBase" value="${state.baseAmountUSD}" min="1" max="1000" step="1" />
       </div>
       <div class="setting-row">
@@ -294,7 +294,7 @@ function renderTabSettings(): string {
         <input type="number" id="inputSolHeld" value="${(state.totalSOLBoughtLamports / LAMPORTS_PER_SOL) || ''}" min="0" step="0.0001" placeholder="0.9333" />
       </div>
       <div class="setting-row">
-        <label>Total réellement investi (USD)</label>
+        <label>Total réellement investi (USDC)</label>
         <input type="number" id="inputInvested" value="${(state.totalUSDCSpentMicro / USDC_DECIMALS) || ''}" min="0" step="1" placeholder="70" />
       </div>
       <button class="btn btn-secondary" id="btnApplyPosition">✔ Appliquer ces chiffres au tableau</button>
@@ -367,7 +367,7 @@ function renderSetup(): string {
         <div class="card-label">WALLET BOT (wallet dédié recommandé)</div>
         <p class="setup-info">
           Crée un wallet Solana <strong>dédié</strong> uniquement au bot.
-          Mets-y les USDC pour acheter + <strong>au moins 0,01 SOL</strong> pour payer les frais de transaction (~0,15$).
+          Mets-y les USDC pour acheter + <strong>au moins 0,01 SOL</strong> pour payer les frais de transaction (quelques centimes).
           Ne pas utiliser le wallet principal.
         </p>
 
@@ -492,7 +492,7 @@ function handleApplyPosition(): void {
   const solHeld = parseFloat((document.getElementById('inputSolHeld') as HTMLInputElement).value);
   const invested = parseFloat((document.getElementById('inputInvested') as HTMLInputElement).value);
   if (isNaN(solHeld) || solHeld <= 0) { alert('Entre le nombre de SOL détenu.'); return; }
-  if (isNaN(invested) || invested <= 0) { alert('Entre le total investi en USD.'); return; }
+  if (isNaN(invested) || invested <= 0) { alert('Entre le total investi en USDC.'); return; }
 
   state.totalSOLBoughtLamports = Math.round(solHeld * LAMPORTS_PER_SOL);
   state.totalUSDCSpentMicro = Math.round(invested * USDC_DECIMALS);
