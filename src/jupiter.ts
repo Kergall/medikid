@@ -25,7 +25,10 @@ export async function getSwapQuote(
   url.searchParams.set('slippageBps', String(slippageBps));
 
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Quote API error: ${res.status}`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Quote API ${res.status} — ${detail.slice(0, 200)}`);
+  }
   const raw = await res.json();
 
   const outAmountLamports = Number(raw.outAmount);
@@ -50,7 +53,10 @@ export async function buildSwapTransaction(
       prioritizationFeeLamports: priorityFeeLamports,
     }),
   });
-  if (!res.ok) throw new Error(`Swap API error: ${res.status}`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Swap API ${res.status} — ${detail.slice(0, 200)}`);
+  }
   const { swapTransaction } = await res.json() as { swapTransaction: string };
   return VersionedTransaction.deserialize(
     Buffer.from(swapTransaction, 'base64'),
@@ -69,60 +75,75 @@ export interface PlacedLimitOrder {
   txSignature: string;
 }
 
+// Jupiter Trigger API: sell `makingAmount` SOL for `takingAmount` USDC.
+// The order fills on-chain once the market reaches the implied price.
 export async function buildLimitOrderTransaction(
   spec: LimitOrderSpec,
   walletPubkey: string,
 ): Promise<{ tx: VersionedTransaction; orderAccount: string }> {
-  const inAmount = String(spec.solLamports);
-  const outAmountUSDC = Math.floor(
+  const makingAmount = String(spec.solLamports); // SOL sold (lamports)
+  const takingAmount = String(Math.floor(
     (spec.solLamports / LAMPORTS_PER_SOL) * spec.targetPriceUSD * USDC_DECIMALS,
-  );
+  )); // USDC received (micro)
 
   const res = await fetch(`/api/limit-order`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      owner: walletPubkey,
-      inAmount,
-      outAmount: String(outAmountUSDC),
       inputMint: SOL_MINT,
       outputMint: USDC_MINT,
-      expiredAt: null,
+      maker: walletPubkey,
+      payer: walletPubkey,
+      params: { makingAmount, takingAmount },
+      computeUnitPrice: 'auto',
     }),
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Limit Order API error ${res.status}: ${text}`);
+    const text = await res.text().catch(() => '');
+    throw new Error(`Trigger API ${res.status} — ${text.slice(0, 200)}`);
   }
 
-  const data = await res.json() as { tx: string; orderAccount: string };
-  const tx = VersionedTransaction.deserialize(Buffer.from(data.tx, 'base64'));
-  return { tx, orderAccount: data.orderAccount };
+  const data = await res.json() as { transaction: string; order: string };
+  const tx = VersionedTransaction.deserialize(
+    Buffer.from(data.transaction, 'base64'),
+  );
+  return { tx, orderAccount: data.order };
 }
 
+// Cancels each active Trigger order (one tx per order).
 export async function buildCancelOrdersTransaction(
   orderAccounts: string[],
   walletPubkey: string,
-): Promise<VersionedTransaction | null> {
-  if (orderAccounts.length === 0) return null;
-
-  const res = await fetch(`/api/cancel-orders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner: walletPubkey, orders: orderAccounts }),
-  });
-
-  if (!res.ok) return null; // non-blocking: old orders may already be filled
-
-  const data = await res.json() as { tx: string };
-  return VersionedTransaction.deserialize(Buffer.from(data.tx, 'base64'));
+): Promise<VersionedTransaction[]> {
+  const txs: VersionedTransaction[] = [];
+  for (const order of orderAccounts) {
+    if (!order) continue;
+    try {
+      const res = await fetch(`/api/cancel-orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maker: walletPubkey,
+          order,
+          computeUnitPrice: 'auto',
+        }),
+      });
+      if (!res.ok) continue; // non-blocking: order may already be filled/gone
+      const data = await res.json() as { transaction: string };
+      txs.push(VersionedTransaction.deserialize(
+        Buffer.from(data.transaction, 'base64'),
+      ));
+    } catch { /* skip this order */ }
+  }
+  return txs;
 }
 
 export async function fetchOpenOrders(
   walletPubkey: string,
-): Promise<Array<{ publicKey: string; account: { inputMint: string } }>> {
+): Promise<Array<{ orderKey: string; inputMint: string }>> {
   const res = await fetch(`/api/open-orders?wallet=${walletPubkey}`);
   if (!res.ok) return [];
-  return res.json();
+  const data = await res.json() as { orders?: Array<{ orderKey: string; inputMint: string }> };
+  return data.orders ?? [];
 }

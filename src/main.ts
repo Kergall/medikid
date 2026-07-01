@@ -587,8 +587,10 @@ async function handleDCA(): Promise<void> {
       .filter(o => o.status === 'active' && o.accountPubkey)
       .map(o => o.accountPubkey);
     if (activeAccounts.length > 0) {
-      const cancelTx = await buildCancelOrdersTransaction(activeAccounts, pubkey);
-      if (cancelTx) await signAndSendLocal(cancelTx, keypair, state.rpcEndpoint).catch(console.warn);
+      const cancelTxs = await buildCancelOrdersTransaction(activeAccounts, pubkey);
+      for (const cancelTx of cancelTxs) {
+        await signAndSendLocal(cancelTx, keypair, state.rpcEndpoint).catch(console.warn);
+      }
     }
 
     // 6. Place new sell orders
