@@ -1,6 +1,32 @@
 import { Connection, Keypair, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { USDC_MINT } from './strategy';
+import type { TriggerTx } from './jupiter';
+
+// Sign a Jupiter Trigger transaction and submit it via Jupiter's /execute
+// endpoint (Jupiter broadcasts & lands it). Do NOT touch the blockhash — the
+// transaction is used exactly as Jupiter built it.
+export async function executeTrigger(
+  triggerTx: TriggerTx,
+  keypair: Keypair,
+): Promise<string> {
+  triggerTx.tx.sign([keypair]);
+  const signedTransaction = Buffer.from(triggerTx.tx.serialize()).toString('base64');
+
+  const res = await fetch(`${location.origin}/api/trigger-execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signedTransaction, requestId: triggerTx.requestId }),
+  });
+  const data = await res.json().catch(() => ({} as Record<string, unknown>));
+  const status = (data as { status?: string }).status;
+  const signature = (data as { signature?: string }).signature;
+  if (!res.ok || status !== 'Success' || !signature) {
+    const err = (data as { error?: string }).error ?? `HTTP ${res.status}`;
+    throw new Error(`Exécution Trigger échouée : ${err}`);
+  }
+  return signature;
+}
 
 // All RPC traffic goes through our same-origin Vercel proxy (/api/rpc),
 // which fans out server-side to keyless public Solana RPC providers.

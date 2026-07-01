@@ -82,18 +82,28 @@ export interface PlacedLimitOrder {
   txSignature: string;
 }
 
+// A Jupiter Trigger transaction to be signed then submitted via /execute.
+export interface TriggerTx {
+  tx: VersionedTransaction;
+  requestId: string;   // required by the /execute endpoint
+  order?: string;      // order account (createOrder only)
+}
+
 // Jupiter Trigger API: sell `makingAmount` SOL for `takingAmount` USDC.
 // The order fills on-chain once the market reaches the implied price.
 //
 // HARD SAFETY INVARIANT: a sell order is NEVER created unless its target
 // price is safely ABOVE the current market price. A target at/below market
 // would be filled instantly at a loss. The current market price is required —
-// if it's unknown, we refuse to place the order.
-export async function buildLimitOrderTransaction(
+// if it's unknown, we refuse to create the order.
+//
+// NOTE: the returned tx must be signed and submitted through executeTrigger()
+// (Jupiter's /execute endpoint), NOT sent to a raw RPC.
+export async function createSellOrder(
   spec: LimitOrderSpec,
   walletPubkey: string,
   currentMarketPriceUSD: number,
-): Promise<{ tx: VersionedTransaction; orderAccount: string }> {
+): Promise<TriggerTx> {
   if (!(currentMarketPriceUSD > 0)) {
     throw new Error('Prix du marché inconnu — ordre de vente refusé (sécurité).');
   }
@@ -124,22 +134,25 @@ export async function buildLimitOrderTransaction(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`Trigger API ${res.status} — ${text.slice(0, 200)}`);
+    throw new Error(`Trigger createOrder ${res.status} — ${text.slice(0, 200)}`);
   }
 
-  const data = await res.json() as { transaction: string; order: string };
+  const data = await res.json() as { transaction: string; requestId: string; order: string };
+  if (!data.transaction || !data.requestId) {
+    throw new Error(`Réponse createOrder inattendue : ${JSON.stringify(data).slice(0, 200)}`);
+  }
   const tx = VersionedTransaction.deserialize(
     Buffer.from(data.transaction, 'base64'),
   );
-  return { tx, orderAccount: data.order };
+  return { tx, requestId: data.requestId, order: data.order };
 }
 
-// Cancels each active Trigger order (one tx per order).
-export async function buildCancelOrdersTransaction(
+// Builds a cancel transaction (to be signed + executed) for each order.
+export async function createCancelOrders(
   orderAccounts: string[],
   walletPubkey: string,
-): Promise<VersionedTransaction[]> {
-  const txs: VersionedTransaction[] = [];
+): Promise<TriggerTx[]> {
+  const out: TriggerTx[] = [];
   for (const order of orderAccounts) {
     if (!order) continue;
     try {
@@ -153,13 +166,15 @@ export async function buildCancelOrdersTransaction(
         }),
       });
       if (!res.ok) continue; // non-blocking: order may already be filled/gone
-      const data = await res.json() as { transaction: string };
-      txs.push(VersionedTransaction.deserialize(
-        Buffer.from(data.transaction, 'base64'),
-      ));
+      const data = await res.json() as { transaction: string; requestId: string };
+      if (!data.transaction || !data.requestId) continue;
+      out.push({
+        tx: VersionedTransaction.deserialize(Buffer.from(data.transaction, 'base64')),
+        requestId: data.requestId,
+      });
     } catch { /* skip this order */ }
   }
-  return txs;
+  return out;
 }
 
 export interface OpenOrder {

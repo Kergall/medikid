@@ -14,12 +14,15 @@ import {
 import {
   getSwapQuote,
   buildSwapTransaction,
-  buildLimitOrderTransaction,
-  buildCancelOrdersTransaction,
+  createSellOrder,
+  createCancelOrders,
   fetchOpenOrders,
 } from './jupiter';
 import { Keypair } from '@solana/web3.js';
-import { keypairFromBase58, signAndSendLocal, getWalletSolLamports, getWalletUsdcMicro } from './signer';
+import {
+  keypairFromBase58, signAndSendLocal, executeTrigger,
+  getWalletSolLamports, getWalletUsdcMicro,
+} from './signer';
 import { encryptKey, decryptKey, exportAutoKey, importAutoKey, decryptWithAutoKey } from './crypto';
 import {
   saveEncryptedKey, loadEncryptedKey,
@@ -507,10 +510,10 @@ async function handleCancelAllOrders(): Promise<void> {
     if (!keypair) { isLoading = false; render(); return; }
     const pubkey = keypair.publicKey.toBase58();
 
-    const cancelTxs = await buildCancelOrdersTransaction(keys, pubkey);
+    const cancelTxs = await createCancelOrders(keys, pubkey);
     let ok = 0;
-    for (const tx of cancelTxs) {
-      try { await signAndSendLocal(tx, keypair, state.rpcEndpoint); ok++; }
+    for (const ct of cancelTxs) {
+      try { await executeTrigger(ct, keypair); ok++; }
       catch (e) { console.warn('Annulation échouée:', e); }
     }
 
@@ -706,36 +709,46 @@ async function handleDCA(): Promise<void> {
     saveState(state);
     await saveLastDCADate(todayISO());
 
-    // 5. Cancel old sell orders
+    // 5. Cancel old sell orders (create → sign → Jupiter /execute)
     const activeAccounts = state.sellOrders
       .filter(o => o.status === 'active' && o.accountPubkey)
       .map(o => o.accountPubkey);
     if (activeAccounts.length > 0) {
-      const cancelTxs = await buildCancelOrdersTransaction(activeAccounts, pubkey);
-      for (const cancelTx of cancelTxs) {
-        await signAndSendLocal(cancelTx, keypair, state.rpcEndpoint).catch(console.warn);
+      const cancelTxs = await createCancelOrders(activeAccounts, pubkey);
+      for (const ct of cancelTxs) {
+        await executeTrigger(ct, keypair).catch(console.warn);
       }
     }
 
     // 6. Place new sell orders (always ABOVE market — hard guard in
-    //    buildLimitOrderTransaction refuses any target at/below market price).
+    //    createSellOrder refuses any target at/below market price).
+    //    Only orders that ACTUALLY execute on-chain are recorded as active.
     const specs = buildSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
     const placedAccounts: string[] = [];
     const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
       try {
-        const { tx, orderAccount } = await buildLimitOrderTransaction(spec, pubkey, marketPrice);
-        await signAndSendLocal(tx, keypair, state.rpcEndpoint);
-        placedAccounts.push(orderAccount);
+        const triggerTx = await createSellOrder(spec, pubkey, marketPrice);
+        await executeTrigger(triggerTx, keypair);
+        placedAccounts.push(triggerTx.order ?? '');
       } catch (err) {
         console.error(`Ordre +${spec.targetPct}% non placé:`, err);
         placedAccounts.push('');
       }
     }
-    state.sellOrders = replaceSellOrders(state.sellOrders, specs, placedAccounts);
+    // Record only successfully placed orders (non-empty account) as active.
+    const okSpecs = specs.filter((_, i) => placedAccounts[i]);
+    const okAccounts = placedAccounts.filter(a => a);
+    state.sellOrders = replaceSellOrders(state.sellOrders, okSpecs, okAccounts);
     saveState(state);
 
-    alert(`✅ DCA exécuté automatiquement !\n${fmtUSD(dcaAmountUSD)} → ${fmtSOL(quote.outAmountLamports)}\nPrix moyen : ${fmtUSD(state.averageBuyPriceUSD)}`);
+    const placedCount = okAccounts.length;
+    alert(
+      `✅ DCA exécuté !\n${fmtUSD(dcaAmountUSD)} → ${fmtSOL(quote.outAmountLamports)}\n` +
+      `Prix moyen : ${fmtUSD(state.averageBuyPriceUSD)}\n` +
+      `Ordres de vente placés : ${placedCount}/${specs.length}` +
+      (placedCount < specs.length ? '\n⚠️ Certains ordres n\'ont pas été placés — réessaie ou vérifie "Voir mes ordres ouverts".' : ''),
+    );
   } catch (err) {
     console.error(err);
     const msg = (err as Error).message;
