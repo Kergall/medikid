@@ -294,28 +294,13 @@ function renderTabSettings(): string {
     </div>
 
     <div class="card">
-      <div class="card-label">SYNCHRONISER LA POSITION</div>
+      <div class="card-label">INFOS WALLET (lecture seule)</div>
       <p class="hint">
-        Si le tableau de bord ne correspond pas à ton wallet (ex : achats en double
-        suite à une erreur réseau), corrige-le ici avec tes chiffres réels.
+        Affiche les soldes réels de ton wallet bot. Aucune action de vente ici —
+        lecture uniquement.
       </p>
-      <button class="btn btn-secondary" id="btnReadWallet">📡 Lire le solde SOL du wallet</button>
+      <button class="btn btn-secondary" id="btnReadWallet">📡 Lire les soldes (SOL + USDC)</button>
       <div id="reconResult" class="hint-small" style="margin:8px 0"></div>
-
-      <div class="setting-row">
-        <label>SOL détenu par le bot</label>
-        <input type="number" id="inputSolHeld" value="${(state.totalSOLBoughtLamports / LAMPORTS_PER_SOL) || ''}" min="0" step="0.0001" placeholder="0.9333" />
-      </div>
-      <div class="setting-row">
-        <label>Total réellement investi (USDC)</label>
-        <input type="number" id="inputInvested" value="${(state.totalUSDCSpentMicro / USDC_DECIMALS) || ''}" min="0" step="1" placeholder="70" />
-      </div>
-      <button class="btn btn-secondary" id="btnApplyPosition">✔ Appliquer ces chiffres au tableau</button>
-      <p class="hint-small">
-        Recalcule le prix moyen. Ensuite, replace les ordres de vente pour couvrir
-        toute la position.
-      </p>
-      <button class="btn btn-primary" id="btnReplaceOrders">🔄 Replacer les 4 ordres de vente</button>
     </div>
 
     <div class="card">
@@ -474,8 +459,6 @@ function bindEvents(): void {
     }
   });
   on('btnReadWallet', 'click', () => void handleReadWallet());
-  on('btnApplyPosition', 'click', () => handleApplyPosition());
-  on('btnReplaceOrders', 'click', () => { if (!isLoading) void handleReplaceSellOrders(); });
   on('btnViewOrders', 'click', () => void handleViewOrders());
   on('btnCancelAllOrders', 'click', () => { if (!isLoading) void handleCancelAllOrders(); });
 }
@@ -562,101 +545,14 @@ async function handleReadWallet(): Promise<void> {
     ]);
     const sol = lamports / LAMPORTS_PER_SOL;
     const usdc = usdcMicro / USDC_DECIMALS;
-    // Suggest position = balance minus a small fee reserve.
-    const suggested = Math.max(0, sol - 0.02);
-    const inp = document.getElementById('inputSolHeld') as HTMLInputElement | null;
-    if (inp && suggested > 0) inp.value = suggested.toFixed(4);
     if (el) {
       el.innerHTML =
         `<strong>Wallet bot ${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)}</strong><br>` +
-        `• SOL libre : <strong>${fmt(sol, 4)} SOL</strong><br>` +
-        `• USDC : <strong>${fmt(usdc, 2)} USDC</strong><br>` +
-        `Suggestion SOL pour le bot : ${fmt(suggested, 4)} (0,02 gardés pour les frais).`;
+        `• SOL : <strong>${fmt(sol, 4)} SOL</strong><br>` +
+        `• USDC : <strong>${fmt(usdc, 2)} USDC</strong>`;
     }
   } catch (e) {
     if (el) el.textContent = `Erreur lecture wallet : ${(e as Error).message}`;
-  }
-}
-
-function handleApplyPosition(): void {
-  const solHeld = parseFloat((document.getElementById('inputSolHeld') as HTMLInputElement).value);
-  const invested = parseFloat((document.getElementById('inputInvested') as HTMLInputElement).value);
-  if (isNaN(solHeld) || solHeld <= 0) { alert('Entre le nombre de SOL détenu.'); return; }
-  if (isNaN(invested) || invested <= 0) { alert('Entre le total investi en USDC.'); return; }
-
-  state.totalSOLBoughtLamports = Math.round(solHeld * LAMPORTS_PER_SOL);
-  state.totalUSDCSpentMicro = Math.round(invested * USDC_DECIMALS);
-  state.averageBuyPriceUSD = invested / solHeld;
-  saveState(state);
-  alert(
-    `✅ Position mise à jour.\n` +
-    `${fmt(solHeld, 4)} SOL • investi ${fmtUSD(invested)}\n` +
-    `Prix moyen : ${fmtUSD(state.averageBuyPriceUSD)}\n\n` +
-    `Pense à replacer les ordres de vente pour couvrir toute la position.`,
-  );
-  currentTab = 'tableau';
-  render();
-}
-
-async function handleReplaceSellOrders(): Promise<void> {
-  if (state.totalSOLBoughtLamports <= 0 || state.averageBuyPriceUSD <= 0) {
-    alert('Applique d\'abord ta position (SOL détenu + investi).');
-    return;
-  }
-  if (!confirm(
-    'Annuler les ordres de vente existants et en placer 4 nouveaux pour toute la ' +
-    'position ? Cela coûte quelques frais de transaction.',
-  )) return;
-
-  isLoading = true;
-  render();
-  try {
-    const keypair = await loadKeypairForExecution();
-    if (!keypair) { isLoading = false; render(); return; }
-    const pubkey = keypair.publicKey.toBase58();
-
-    // Cancel existing active orders
-    const activeAccounts = state.sellOrders
-      .filter(o => o.status === 'active' && o.accountPubkey)
-      .map(o => o.accountPubkey);
-    if (activeAccounts.length > 0) {
-      const cancelTxs = await buildCancelOrdersTransaction(activeAccounts, pubkey);
-      for (const tx of cancelTxs) {
-        await signAndSendLocal(tx, keypair, state.rpcEndpoint).catch(console.warn);
-      }
-    }
-
-    // Place fresh orders for the full position
-    const specs = buildSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
-    const placedAccounts: string[] = [];
-    const marketPrice = priceData?.currentUSD ?? 0;
-    for (const spec of specs) {
-      // Safety: never place a sell target at/below market — it would fill
-      // instantly at a loss. Skip such orders.
-      if (marketPrice > 0 && spec.targetPriceUSD <= marketPrice * 1.005) {
-        console.warn(`Ordre +${spec.targetPct}% ignoré (cible ${spec.targetPriceUSD} ≤ marché ${marketPrice})`);
-        placedAccounts.push('');
-        continue;
-      }
-      try {
-        const { tx, orderAccount } = await buildLimitOrderTransaction(spec, pubkey);
-        await signAndSendLocal(tx, keypair, state.rpcEndpoint);
-        placedAccounts.push(orderAccount);
-      } catch (err) {
-        console.error(`Ordre +${spec.targetPct}% échoué:`, err);
-        placedAccounts.push('');
-      }
-    }
-    const okCount = placedAccounts.filter(a => a).length;
-    state.sellOrders = replaceSellOrders(state.sellOrders, specs, placedAccounts);
-    saveState(state);
-    alert(`✅ ${okCount}/${specs.length} ordres de vente placés pour toute la position.`);
-    currentTab = 'tableau';
-  } catch (err) {
-    alert(`Erreur : ${(err as Error).message}`);
-  } finally {
-    isLoading = false;
-    render();
   }
 }
 
@@ -821,24 +717,18 @@ async function handleDCA(): Promise<void> {
       }
     }
 
-    // 6. Place new sell orders
+    // 6. Place new sell orders (always ABOVE market — hard guard in
+    //    buildLimitOrderTransaction refuses any target at/below market price).
     const specs = buildSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
     const placedAccounts: string[] = [];
     const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
-      // Safety: never place a sell target at/below market — it would fill
-      // instantly at a loss. Skip such orders.
-      if (marketPrice > 0 && spec.targetPriceUSD <= marketPrice * 1.005) {
-        console.warn(`Ordre +${spec.targetPct}% ignoré (cible ${spec.targetPriceUSD} ≤ marché ${marketPrice})`);
-        placedAccounts.push('');
-        continue;
-      }
       try {
-        const { tx, orderAccount } = await buildLimitOrderTransaction(spec, pubkey);
+        const { tx, orderAccount } = await buildLimitOrderTransaction(spec, pubkey, marketPrice);
         await signAndSendLocal(tx, keypair, state.rpcEndpoint);
         placedAccounts.push(orderAccount);
       } catch (err) {
-        console.error(`Ordre +${spec.targetPct}% échoué:`, err);
+        console.error(`Ordre +${spec.targetPct}% non placé:`, err);
         placedAccounts.push('');
       }
     }

@@ -84,10 +84,26 @@ export interface PlacedLimitOrder {
 
 // Jupiter Trigger API: sell `makingAmount` SOL for `takingAmount` USDC.
 // The order fills on-chain once the market reaches the implied price.
+//
+// HARD SAFETY INVARIANT: a sell order is NEVER created unless its target
+// price is safely ABOVE the current market price. A target at/below market
+// would be filled instantly at a loss. The current market price is required —
+// if it's unknown, we refuse to place the order.
 export async function buildLimitOrderTransaction(
   spec: LimitOrderSpec,
   walletPubkey: string,
+  currentMarketPriceUSD: number,
 ): Promise<{ tx: VersionedTransaction; orderAccount: string }> {
+  if (!(currentMarketPriceUSD > 0)) {
+    throw new Error('Prix du marché inconnu — ordre de vente refusé (sécurité).');
+  }
+  if (spec.targetPriceUSD <= currentMarketPriceUSD * 1.005) {
+    throw new Error(
+      `Cible ${spec.targetPriceUSD.toFixed(2)} ≤ marché ${currentMarketPriceUSD.toFixed(2)} ` +
+      `— ordre refusé (anti-vente à perte).`,
+    );
+  }
+
   const makingAmount = String(spec.solLamports); // SOL sold (lamports)
   const takingAmount = String(Math.floor(
     (spec.solLamports / LAMPORTS_PER_SOL) * spec.targetPriceUSD * USDC_DECIMALS,
