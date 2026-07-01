@@ -4,8 +4,13 @@ import bs58 from 'bs58';
 // All RPC traffic goes through our same-origin Vercel proxy (/api/rpc),
 // which fans out server-side to keyless public Solana RPC providers.
 // This avoids CORS and dead public endpoints on mobile networks.
-function proxyRpcUrl(): string {
-  return `${location.origin}/api/rpc`;
+// A user-supplied dedicated RPC (e.g. Helius) is forwarded as ?upstream=.
+function proxyRpcUrl(customUpstream?: string): string {
+  const base = `${location.origin}/api/rpc`;
+  if (customUpstream && /^https?:\/\//.test(customUpstream)) {
+    return `${base}?upstream=${encodeURIComponent(customUpstream)}`;
+  }
+  return base;
 }
 
 export function keypairFromBase58(privateKeyBase58: string): Keypair {
@@ -21,13 +26,12 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 export async function signAndSendLocal(
   tx: VersionedTransaction,
   keypair: Keypair,
-  _preferredRpc: string, // kept for compatibility; RPC now goes through the proxy
+  preferredRpc: string, // optional dedicated RPC; else the proxy's public pool
 ): Promise<string> {
-  const connection = new Connection(proxyRpcUrl(), 'confirmed');
+  const connection = new Connection(proxyRpcUrl(preferredRpc), 'confirmed');
 
   // Fresh 'confirmed' blockhash = maximum validity window (~60s).
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash('confirmed');
+  const { blockhash } = await connection.getLatestBlockhash('confirmed');
 
   // Sign a fresh copy with the current blockhash.
   const freshTx = VersionedTransaction.deserialize(tx.serialize());
@@ -55,11 +59,18 @@ export async function signAndSendLocal(
     throw err;
   }
 
-  // Public RPCs drop transactions, so rebroadcast while polling for a landing.
-  const deadline = Date.now() + 75_000;
+  // Public RPCs drop transactions, so rebroadcast aggressively while polling.
+  // We poll signature status (with history) rather than comparing block
+  // heights across upstreams, which is unreliable through a fan-out proxy.
+  const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
+    // Rebroadcast the same signed tx to keep it alive at the leader.
+    await connection
+      .sendRawTransaction(rawTx, { skipPreflight: true, maxRetries: 5 })
+      .catch(() => { /* transient; keep polling */ });
+
     const { value } = await connection.getSignatureStatus(signature, {
-      searchTransactionHistory: false,
+      searchTransactionHistory: true,
     });
     if (value) {
       if (value.err) {
@@ -73,18 +84,17 @@ export async function signAndSendLocal(
       }
     }
 
-    const height = await connection.getBlockHeight('confirmed');
-    if (height > lastValidBlockHeight) {
-      throw new Error('Transaction expirée (blockhash périmé) — réessaie.');
-    }
-
-    // Rebroadcast the same signed tx to keep it alive in the mempool.
-    await connection
-      .sendRawTransaction(rawTx, { skipPreflight: true, maxRetries: 5 })
-      .catch(() => { /* transient; keep polling */ });
-
-    await sleep(3000);
+    await sleep(2500);
   }
 
-  throw new Error('Délai de confirmation dépassé — réessaie.');
+  // Final check: it may have landed just as we timed out.
+  const final = await connection
+    .getSignatureStatus(signature, { searchTransactionHistory: true })
+    .catch(() => null);
+  if (final?.value && !final.value.err) return signature;
+
+  throw new Error(
+    'Transaction non confirmée à temps. Les RPC publics gratuits abandonnent ' +
+    'souvent les transactions.\nRéessaie, ou configure un RPC dédié dans Réglages.',
+  );
 }

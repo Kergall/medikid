@@ -11,7 +11,7 @@ const DEFAULT_STATE: AppState = {
   dcaHistory: [],
   sellOrders: [],
   baseAmountUSD: 10,
-  rpcEndpoint: 'https://rpc.ankr.com/solana',
+  rpcEndpoint: '', // empty = use the proxy's built-in public RPC pool
   walletMode: 'none',
   autoExecute: false,
 };
@@ -21,9 +21,12 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_STATE };
     const saved = JSON.parse(raw);
-    // Migrate off the overloaded public RPC
-    if (saved.rpcEndpoint === 'https://api.mainnet-beta.solana.com') {
-      saved.rpcEndpoint = 'https://rpc.ankr.com/solana';
+    // Migrate off dead/keyless-blocked public RPCs to the proxy pool ('')
+    if (
+      saved.rpcEndpoint === 'https://api.mainnet-beta.solana.com' ||
+      saved.rpcEndpoint === 'https://rpc.ankr.com/solana'
+    ) {
+      saved.rpcEndpoint = '';
     }
     return { ...DEFAULT_STATE, ...saved };
   } catch {

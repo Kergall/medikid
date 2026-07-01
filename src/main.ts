@@ -269,9 +269,14 @@ function renderTabSettings(): string {
         <input type="number" id="inputBase" value="${state.baseAmountUSD}" min="1" max="1000" step="1" />
       </div>
       <div class="setting-row">
-        <label>RPC Solana</label>
-        <input type="text" id="inputRPC" value="${state.rpcEndpoint}" placeholder="https://api.mainnet-beta.solana.com" />
+        <label>RPC Solana dédié (optionnel)</label>
+        <input type="text" id="inputRPC" value="${state.rpcEndpoint}" placeholder="Laisser vide = RPC publics automatiques" />
       </div>
+      <p class="hint-small">
+        Vide par défaut (RPC publics gratuits). Pour une fiabilité maximale,
+        colle une URL Helius gratuite (helius.dev → crée un compte → copie ton
+        « RPC URL »). Ça garantit que tes achats passent même en période chargée.
+      </p>
       <button class="btn btn-secondary" id="btnSaveSettings">Enregistrer</button>
     </div>
 
@@ -420,7 +425,7 @@ function bindEvents(): void {
     const base = parseFloat((document.getElementById('inputBase') as HTMLInputElement).value);
     const rpc  = (document.getElementById('inputRPC') as HTMLInputElement).value.trim();
     if (!isNaN(base) && base > 0) state.baseAmountUSD = base;
-    if (rpc) state.rpcEndpoint = rpc;
+    state.rpcEndpoint = rpc; // empty = use the proxy's public RPC pool
     saveState(state);
     render();
   });
