@@ -297,6 +297,19 @@ function renderTabSettings(): string {
     </div>
 
     <div class="card">
+      <div class="card-label">PROTÉGER MA POSITION</div>
+      <p class="hint">
+        Place les 4 ordres de vente sur le SOL <strong>libre</strong> de ton wallet,
+        avec des cibles calculées <strong>au-dessus du cours actuel</strong> (+10/+20/+40/+60 %).
+        Aucune vente à perte possible. Ne rachète rien. Garde une petite réserve de SOL
+        pour les frais.
+      </p>
+      <button class="btn btn-primary ${isLoading ? 'loading' : ''}" id="btnProtect" ${isLoading ? 'disabled' : ''}>
+        🛡️ Placer les ordres sur ma position actuelle
+      </button>
+    </div>
+
+    <div class="card">
       <div class="card-label">INFOS WALLET (lecture seule)</div>
       <p class="hint">
         Affiche les soldes réels de ton wallet bot. Aucune action de vente ici —
@@ -464,6 +477,85 @@ function bindEvents(): void {
   on('btnReadWallet', 'click', () => void handleReadWallet());
   on('btnViewOrders', 'click', () => void handleViewOrders());
   on('btnCancelAllOrders', 'click', () => { if (!isLoading) void handleCancelAllOrders(); });
+  on('btnProtect', 'click', () => { if (!isLoading) void handleProtectPosition(); });
+}
+
+// Place sell orders on the wallet's free SOL, targets ABOVE current market.
+async function handleProtectPosition(): Promise<void> {
+  if (!walletAddress) { alert('Configure d\'abord le wallet.'); return; }
+  if (!priceData) { await refreshPrice(); }
+  if (!priceData || !(priceData.currentUSD > 0)) {
+    alert('Prix du marché indisponible, réessaie dans un instant.');
+    return;
+  }
+  const marketPrice = priceData.currentUSD;
+
+  if (!confirm(
+    `Placer 4 ordres de vente au-dessus du cours actuel (${fmtUSD(marketPrice)}) ` +
+    `sur ton SOL libre ? Une réserve de ~0,04 SOL est gardée pour les frais.`,
+  )) return;
+
+  isLoading = true;
+  render();
+  try {
+    const keypair = await loadKeypairForExecution();
+    if (!keypair) { isLoading = false; render(); return; }
+    const pubkey = keypair.publicKey.toBase58();
+
+    const lamports = await getWalletSolLamports(walletAddress, state.rpcEndpoint);
+    const feeReserve = Math.floor(0.04 * LAMPORTS_PER_SOL);
+    const positionLamports = lamports - feeReserve;
+    if (positionLamports <= 0) {
+      alert('Pas assez de SOL libre pour placer des ordres (garde ~0,04 SOL de frais).');
+      isLoading = false; render();
+      return;
+    }
+
+    // Cancel any pre-existing open orders first, to avoid double-locking SOL.
+    const existing = await fetchOpenOrders(walletAddress).catch(() => []);
+    if (existing.length > 0) {
+      const cancelTxs = await createCancelOrders(existing.map(o => o.orderKey), pubkey);
+      for (const ct of cancelTxs) await executeTrigger(ct, keypair).catch(console.warn);
+    }
+
+    // Targets based on the CURRENT market price → always above market (safe).
+    const specs = buildSellOrderSpecs(positionLamports, marketPrice);
+    const placedAccounts: string[] = [];
+    for (const spec of specs) {
+      try {
+        const t = await createSellOrder(spec, pubkey, marketPrice);
+        await executeTrigger(t, keypair);
+        placedAccounts.push(t.order ?? '');
+      } catch (err) {
+        console.error(`Ordre +${spec.targetPct}% non placé:`, err);
+        placedAccounts.push('');
+      }
+    }
+    const okSpecs = specs.filter((_, i) => placedAccounts[i]);
+    const okAccounts = placedAccounts.filter(a => a);
+
+    // Sync the dashboard to reality (reference = current market price).
+    state.totalSOLBoughtLamports = positionLamports;
+    state.averageBuyPriceUSD = marketPrice;
+    state.totalUSDCSpentMicro = Math.round(
+      (positionLamports / LAMPORTS_PER_SOL) * marketPrice * USDC_DECIMALS,
+    );
+    state.sellOrders = replaceSellOrders(state.sellOrders, okSpecs, okAccounts);
+    saveState(state);
+
+    alert(
+      `✅ ${okAccounts.length}/${specs.length} ordres de vente placés au-dessus de ${fmtUSD(marketPrice)}.` +
+      (okAccounts.length < specs.length
+        ? '\n⚠️ Certains n\'ont pas été placés — réessaie ou vérifie "Voir mes ordres ouverts".'
+        : ''),
+    );
+    currentTab = 'tableau';
+  } catch (err) {
+    alert(`Erreur : ${(err as Error).message}`);
+  } finally {
+    isLoading = false;
+    render();
+  }
 }
 
 // ─── Jupiter open orders (locked SOL) ────────────────────────────────────────
