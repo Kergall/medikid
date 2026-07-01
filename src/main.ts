@@ -552,11 +552,17 @@ async function handleDCA(): Promise<void> {
     const pubkey = keypair.publicKey.toBase58();
 
     // 1. Quote
-    const quote = await getSwapQuote(dcaAmountUSD);
+    const quote = await getSwapQuote(dcaAmountUSD).catch(e => {
+      throw new Error(`Étape 1 (quote Jupiter) : ${(e as Error).message}`);
+    });
 
-    // 2. Swap tx
-    const swapTx = await buildSwapTransaction(quote, pubkey);
-    const swapSig = await signAndSendLocal(swapTx, keypair, state.rpcEndpoint);
+    // 2. Build + send swap tx
+    const swapTx = await buildSwapTransaction(quote, pubkey).catch(e => {
+      throw new Error(`Étape 2 (construction swap) : ${(e as Error).message}`);
+    });
+    const swapSig = await signAndSendLocal(swapTx, keypair, state.rpcEndpoint).catch(e => {
+      throw new Error(`Étape 3 (envoi RPC) : ${(e as Error).message}`);
+    });
 
     // 3. Update position
     const usdcMicro = Math.floor(dcaAmountUSD * USDC_DECIMALS);

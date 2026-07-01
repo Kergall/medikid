@@ -20,7 +20,12 @@ export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_STATE };
-    return { ...DEFAULT_STATE, ...JSON.parse(raw) };
+    const saved = JSON.parse(raw);
+    // Migrate off the overloaded public RPC
+    if (saved.rpcEndpoint === 'https://api.mainnet-beta.solana.com') {
+      saved.rpcEndpoint = 'https://rpc.ankr.com/solana';
+    }
+    return { ...DEFAULT_STATE, ...saved };
   } catch {
     return { ...DEFAULT_STATE };
   }

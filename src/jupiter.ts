@@ -2,7 +2,7 @@ import { VersionedTransaction } from '@solana/web3.js';
 import { SOL_MINT, USDC_MINT, USDC_DECIMALS, LAMPORTS_PER_SOL } from './strategy';
 
 const QUOTE_API = 'https://quote-api.jup.ag/v6';
-const LIMIT_API = 'https://jup.ag/api/limit/v2';
+const LIMIT_API = 'https://api.jup.ag/limit/v2';
 
 // ─── Swap (DCA buy: USDC → SOL) ───────────────────────────────────────────────
 
