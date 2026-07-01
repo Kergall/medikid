@@ -337,7 +337,8 @@ function renderSetup(): string {
         <div class="card-label">WALLET BOT (wallet dédié recommandé)</div>
         <p class="setup-info">
           Crée un wallet Solana <strong>dédié</strong> uniquement au bot.
-          Mets-y uniquement les USDC nécessaires. Ne pas utiliser le wallet principal.
+          Mets-y les USDC pour acheter + <strong>au moins 0,01 SOL</strong> pour payer les frais de transaction (~0,15$).
+          Ne pas utiliser le wallet principal.
         </p>
 
         ${hasKey ? html`

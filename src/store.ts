@@ -11,7 +11,7 @@ const DEFAULT_STATE: AppState = {
   dcaHistory: [],
   sellOrders: [],
   baseAmountUSD: 10,
-  rpcEndpoint: 'https://api.mainnet-beta.solana.com',
+  rpcEndpoint: 'https://rpc.ankr.com/solana',
   walletMode: 'none',
   autoExecute: false,
 };
