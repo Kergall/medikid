@@ -579,12 +579,12 @@ async function handleViewOrders(): Promise<void> {
   try {
     const orders = await fetchOpenOrders(walletAddress);
     lastFetchedOrderKeys = orders.map(o => o.orderKey);
-    const totalLocked = orders.reduce((s, o) => s + o.makingLamports, 0) / LAMPORTS_PER_SOL;
     if (el) {
       el.innerHTML = orders.length === 0
         ? 'Aucun ordre ouvert. Ton SOL (s\'il y en a) est libre dans le wallet.'
-        : `<strong>${orders.length} ordre(s) ouvert(s)</strong> — ${fmt(totalLocked, 4)} SOL bloqué au total, ` +
-          `en attente que le prix atteigne les cibles. Annule pour récupérer ce SOL dans le wallet.`;
+        : `<strong>${orders.length} ordre(s) de vente ouvert(s)</strong> sur Jupiter, en attente ` +
+          `que le prix atteigne les cibles. Les montants sont dans l'onglet Tableau. ` +
+          `« Annuler » récupère le SOL dans le wallet.`;
     }
   } catch (e) {
     if (el) el.textContent = `Erreur : ${(e as Error).message}`;
