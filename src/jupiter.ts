@@ -41,7 +41,6 @@ export async function getSwapQuote(
 export async function buildSwapTransaction(
   quote: SwapQuote,
   walletPubkey: string,
-  priorityFeeLamports = 5000,
 ): Promise<VersionedTransaction> {
   const res = await fetch(`/api/swap`, {
     method: 'POST',
@@ -50,7 +49,15 @@ export async function buildSwapTransaction(
       quoteResponse: quote.raw,
       userPublicKey: walletPubkey,
       wrapAndUnwrapSol: true,
-      prioritizationFeeLamports: priorityFeeLamports,
+      // Let Jupiter size compute units and pay a high-but-capped priority fee
+      // so the tx lands reliably through public RPCs.
+      dynamicComputeUnitLimit: true,
+      prioritizationFeeLamports: {
+        priorityLevelWithMaxLamports: {
+          priorityLevel: 'high',
+          maxLamports: 1_000_000,
+        },
+      },
     }),
   });
   if (!res.ok) {

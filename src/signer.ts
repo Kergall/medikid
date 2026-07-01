@@ -18,37 +18,6 @@ export function keypairFromBase58(privateKeyBase58: string): Keypair {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-// Confirm by polling signature status over HTTP (no WebSocket subscription).
-async function confirmViaPolling(
-  connection: Connection,
-  signature: string,
-  lastValidBlockHeight: number,
-): Promise<void> {
-  const deadline = Date.now() + 90_000; // hard cap ~90s
-  while (Date.now() < deadline) {
-    const { value } = await connection.getSignatureStatus(signature, {
-      searchTransactionHistory: false,
-    });
-    if (value) {
-      if (value.err) {
-        throw new Error(`Transaction rejetée on-chain : ${JSON.stringify(value.err)}`);
-      }
-      if (
-        value.confirmationStatus === 'confirmed' ||
-        value.confirmationStatus === 'finalized'
-      ) {
-        return;
-      }
-    }
-    const height = await connection.getBlockHeight('confirmed');
-    if (height > lastValidBlockHeight) {
-      throw new Error('Transaction expirée (blockhash périmé) — réessaie.');
-    }
-    await sleep(2000);
-  }
-  throw new Error('Délai de confirmation dépassé — réessaie.');
-}
-
 export async function signAndSendLocal(
   tx: VersionedTransaction,
   keypair: Keypair,
@@ -56,20 +25,23 @@ export async function signAndSendLocal(
 ): Promise<string> {
   const connection = new Connection(proxyRpcUrl(), 'confirmed');
 
+  // Fresh 'confirmed' blockhash = maximum validity window (~60s).
   const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash('finalized');
+    await connection.getLatestBlockhash('confirmed');
 
   // Sign a fresh copy with the current blockhash.
   const freshTx = VersionedTransaction.deserialize(tx.serialize());
   freshTx.message.recentBlockhash = blockhash;
   freshTx.sign([keypair]);
+  const rawTx = freshTx.serialize();
 
+  // First send WITH preflight to surface business errors (insufficient funds…).
   let signature: string;
   try {
-    signature = await connection.sendRawTransaction(freshTx.serialize(), {
+    signature = await connection.sendRawTransaction(rawTx, {
       skipPreflight: false,
       preflightCommitment: 'confirmed',
-      maxRetries: 3,
+      maxRetries: 5,
     });
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
@@ -83,6 +55,36 @@ export async function signAndSendLocal(
     throw err;
   }
 
-  await confirmViaPolling(connection, signature, lastValidBlockHeight);
-  return signature;
+  // Public RPCs drop transactions, so rebroadcast while polling for a landing.
+  const deadline = Date.now() + 75_000;
+  while (Date.now() < deadline) {
+    const { value } = await connection.getSignatureStatus(signature, {
+      searchTransactionHistory: false,
+    });
+    if (value) {
+      if (value.err) {
+        throw new Error(`Transaction rejetée on-chain : ${JSON.stringify(value.err)}`);
+      }
+      if (
+        value.confirmationStatus === 'confirmed' ||
+        value.confirmationStatus === 'finalized'
+      ) {
+        return signature;
+      }
+    }
+
+    const height = await connection.getBlockHeight('confirmed');
+    if (height > lastValidBlockHeight) {
+      throw new Error('Transaction expirée (blockhash périmé) — réessaie.');
+    }
+
+    // Rebroadcast the same signed tx to keep it alive in the mempool.
+    await connection
+      .sendRawTransaction(rawTx, { skipPreflight: true, maxRetries: 5 })
+      .catch(() => { /* transient; keep polling */ });
+
+    await sleep(3000);
+  }
+
+  throw new Error('Délai de confirmation dépassé — réessaie.');
 }
