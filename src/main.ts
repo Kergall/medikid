@@ -18,7 +18,7 @@ import {
   buildCancelOrdersTransaction,
 } from './jupiter';
 import { Keypair } from '@solana/web3.js';
-import { keypairFromBase58, signAndSendLocal } from './signer';
+import { keypairFromBase58, signAndSendLocal, getWalletSolLamports } from './signer';
 import { encryptKey, decryptKey, exportAutoKey, importAutoKey, decryptWithAutoKey } from './crypto';
 import {
   saveEncryptedKey, loadEncryptedKey,
@@ -281,6 +281,31 @@ function renderTabSettings(): string {
     </div>
 
     <div class="card">
+      <div class="card-label">SYNCHRONISER LA POSITION</div>
+      <p class="hint">
+        Si le tableau de bord ne correspond pas à ton wallet (ex : achats en double
+        suite à une erreur réseau), corrige-le ici avec tes chiffres réels.
+      </p>
+      <button class="btn btn-secondary" id="btnReadWallet">📡 Lire le solde SOL du wallet</button>
+      <div id="reconResult" class="hint-small" style="margin:8px 0"></div>
+
+      <div class="setting-row">
+        <label>SOL détenu par le bot</label>
+        <input type="number" id="inputSolHeld" value="${(state.totalSOLBoughtLamports / LAMPORTS_PER_SOL) || ''}" min="0" step="0.0001" placeholder="0.9333" />
+      </div>
+      <div class="setting-row">
+        <label>Total réellement investi (USD)</label>
+        <input type="number" id="inputInvested" value="${(state.totalUSDCSpentMicro / USDC_DECIMALS) || ''}" min="0" step="1" placeholder="70" />
+      </div>
+      <button class="btn btn-secondary" id="btnApplyPosition">✔ Appliquer ces chiffres au tableau</button>
+      <p class="hint-small">
+        Recalcule le prix moyen. Ensuite, replace les ordres de vente pour couvrir
+        toute la position.
+      </p>
+      <button class="btn btn-primary" id="btnReplaceOrders">🔄 Replacer les 4 ordres de vente</button>
+    </div>
+
+    <div class="card">
       <div class="card-label">ZONE DANGER</div>
       <p class="hint">Réinitialise tout l'historique et la position. Les ordres on-chain ne sont pas annulés.</p>
       <button class="btn btn-danger" id="btnReset">Réinitialiser tout l'historique</button>
@@ -435,6 +460,106 @@ function bindEvents(): void {
       render();
     }
   });
+  on('btnReadWallet', 'click', () => void handleReadWallet());
+  on('btnApplyPosition', 'click', () => handleApplyPosition());
+  on('btnReplaceOrders', 'click', () => { if (!isLoading) void handleReplaceSellOrders(); });
+}
+
+// ─── Reconciliation ──────────────────────────────────────────────────────────
+
+async function handleReadWallet(): Promise<void> {
+  if (!walletAddress) { alert('Configure d\'abord le wallet.'); return; }
+  const el = document.getElementById('reconResult');
+  if (el) el.textContent = '⏳ Lecture du solde…';
+  try {
+    const lamports = await getWalletSolLamports(walletAddress, state.rpcEndpoint);
+    const sol = lamports / LAMPORTS_PER_SOL;
+    // Suggest position = balance minus a small fee reserve.
+    const suggested = Math.max(0, sol - 0.02);
+    const inp = document.getElementById('inputSolHeld') as HTMLInputElement | null;
+    if (inp && suggested > 0) inp.value = suggested.toFixed(4);
+    if (el) {
+      el.textContent =
+        `Solde wallet : ${fmt(sol, 4)} SOL. Suggestion pour le bot : ${fmt(suggested, 4)} SOL ` +
+        `(0,02 SOL gardés pour les frais). Ajuste si besoin, puis Applique.`;
+    }
+  } catch (e) {
+    if (el) el.textContent = `Erreur lecture wallet : ${(e as Error).message}`;
+  }
+}
+
+function handleApplyPosition(): void {
+  const solHeld = parseFloat((document.getElementById('inputSolHeld') as HTMLInputElement).value);
+  const invested = parseFloat((document.getElementById('inputInvested') as HTMLInputElement).value);
+  if (isNaN(solHeld) || solHeld <= 0) { alert('Entre le nombre de SOL détenu.'); return; }
+  if (isNaN(invested) || invested <= 0) { alert('Entre le total investi en USD.'); return; }
+
+  state.totalSOLBoughtLamports = Math.round(solHeld * LAMPORTS_PER_SOL);
+  state.totalUSDCSpentMicro = Math.round(invested * USDC_DECIMALS);
+  state.averageBuyPriceUSD = invested / solHeld;
+  saveState(state);
+  alert(
+    `✅ Position mise à jour.\n` +
+    `${fmt(solHeld, 4)} SOL • investi ${fmtUSD(invested)}\n` +
+    `Prix moyen : ${fmtUSD(state.averageBuyPriceUSD)}\n\n` +
+    `Pense à replacer les ordres de vente pour couvrir toute la position.`,
+  );
+  currentTab = 'tableau';
+  render();
+}
+
+async function handleReplaceSellOrders(): Promise<void> {
+  if (state.totalSOLBoughtLamports <= 0 || state.averageBuyPriceUSD <= 0) {
+    alert('Applique d\'abord ta position (SOL détenu + investi).');
+    return;
+  }
+  if (!confirm(
+    'Annuler les ordres de vente existants et en placer 4 nouveaux pour toute la ' +
+    'position ? Cela coûte quelques frais de transaction.',
+  )) return;
+
+  isLoading = true;
+  render();
+  try {
+    const keypair = await loadKeypairForExecution();
+    if (!keypair) { isLoading = false; render(); return; }
+    const pubkey = keypair.publicKey.toBase58();
+
+    // Cancel existing active orders
+    const activeAccounts = state.sellOrders
+      .filter(o => o.status === 'active' && o.accountPubkey)
+      .map(o => o.accountPubkey);
+    if (activeAccounts.length > 0) {
+      const cancelTxs = await buildCancelOrdersTransaction(activeAccounts, pubkey);
+      for (const tx of cancelTxs) {
+        await signAndSendLocal(tx, keypair, state.rpcEndpoint).catch(console.warn);
+      }
+    }
+
+    // Place fresh orders for the full position
+    const specs = buildSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
+    const placedAccounts: string[] = [];
+    for (const spec of specs) {
+      try {
+        const { tx, orderAccount } = await buildLimitOrderTransaction(spec, pubkey);
+        await signAndSendLocal(tx, keypair, state.rpcEndpoint);
+        placedAccounts.push(orderAccount);
+      } catch (err) {
+        console.error(`Ordre +${spec.targetPct}% échoué:`, err);
+        placedAccounts.push('');
+      }
+    }
+    const okCount = placedAccounts.filter(a => a).length;
+    state.sellOrders = replaceSellOrders(state.sellOrders, specs, placedAccounts);
+    saveState(state);
+    alert(`✅ ${okCount}/${specs.length} ordres de vente placés pour toute la position.`);
+    currentTab = 'tableau';
+  } catch (err) {
+    alert(`Erreur : ${(err as Error).message}`);
+  } finally {
+    isLoading = false;
+    render();
+  }
 }
 
 // ─── Setup handlers ──────────────────────────────────────────────────────────

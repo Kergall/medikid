@@ -1,4 +1,4 @@
-import { Connection, Keypair, VersionedTransaction } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import bs58 from 'bs58';
 
 // All RPC traffic goes through our same-origin Vercel proxy (/api/rpc),
@@ -11,6 +11,15 @@ function proxyRpcUrl(customUpstream?: string): string {
     return `${base}?upstream=${encodeURIComponent(customUpstream)}`;
   }
   return base;
+}
+
+// Native SOL balance (lamports) of a wallet, via the RPC proxy.
+export async function getWalletSolLamports(
+  pubkey: string,
+  preferredRpc: string,
+): Promise<number> {
+  const connection = new Connection(proxyRpcUrl(preferredRpc), 'confirmed');
+  return connection.getBalance(new PublicKey(pubkey), 'confirmed');
 }
 
 export function keypairFromBase58(privateKeyBase58: string): Keypair {
