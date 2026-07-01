@@ -521,6 +521,7 @@ async function handleProtectPosition(): Promise<void> {
     // Targets based on the CURRENT market price → always above market (safe).
     const specs = buildSellOrderSpecs(positionLamports, marketPrice);
     const placedAccounts: string[] = [];
+    const errors: string[] = [];
     for (const spec of specs) {
       try {
         const t = await createSellOrder(spec, pubkey, marketPrice);
@@ -528,6 +529,7 @@ async function handleProtectPosition(): Promise<void> {
         placedAccounts.push(t.order ?? '');
       } catch (err) {
         console.error(`Ordre +${spec.targetPct}% non placé:`, err);
+        errors.push((err as Error).message);
         placedAccounts.push('');
       }
     }
@@ -545,8 +547,8 @@ async function handleProtectPosition(): Promise<void> {
 
     alert(
       `✅ ${okAccounts.length}/${specs.length} ordres de vente placés au-dessus de ${fmtUSD(marketPrice)}.` +
-      (okAccounts.length < specs.length
-        ? '\n⚠️ Certains n\'ont pas été placés — réessaie ou vérifie "Voir mes ordres ouverts".'
+      (okAccounts.length < specs.length && errors.length
+        ? `\n⚠️ Échec. Détail : ${errors[0]}`
         : ''),
     );
     currentTab = 'tableau';
