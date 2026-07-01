@@ -77,6 +77,50 @@ export function buildSellOrderSpecs(
 }
 
 /**
+ * Adaptive sell-order builder that respects Jupiter's per-order minimum
+ * (~5 USD). Splits the position across as many of the 4 target levels as the
+ * size allows, each order ≥ minUsdPerOrder. Falls back to fewer, larger orders
+ * for small positions; returns [] if the position is too small for even one.
+ *
+ * refPriceUSD = the price the targets are computed from (average cost, or the
+ * current market price for a manual "protect position" action).
+ */
+export function buildAdaptiveSellOrderSpecs(
+  totalPositionLamports: number,
+  refPriceUSD: number,
+  minUsdPerOrder = 5.5,
+): Array<{ solLamports: number; targetPriceUSD: number; targetPct: number }> {
+  if (totalPositionLamports <= 0 || refPriceUSD <= 0) return [];
+
+  const levels = SELL_LEVELS.map(l => l.pct); // [10, 20, 40, 60]
+  const solTotal = totalPositionLamports / LAMPORTS_PER_SOL;
+  const lowestTargetPrice = refPriceUSD * (1 + levels[0] / 100);
+
+  // Max number of equal chunks whose smallest-target value still clears the min.
+  let n = 0;
+  for (let candidate = levels.length; candidate >= 1; candidate--) {
+    if ((solTotal / candidate) * lowestTargetPrice >= minUsdPerOrder) {
+      n = candidate;
+      break;
+    }
+  }
+  if (n === 0) return []; // position too small for a single valid order
+
+  const orders: Array<{ solLamports: number; targetPriceUSD: number; targetPct: number }> = [];
+  let remaining = totalPositionLamports;
+  const chunk = Math.floor(totalPositionLamports / n);
+  for (let i = 0; i < n; i++) {
+    const isLast = i === n - 1;
+    const solLamports = isLast ? remaining : chunk;
+    if (solLamports <= 0) continue;
+    const pct = levels[i];
+    orders.push({ solLamports, targetPriceUSD: refPriceUSD * (1 + pct / 100), targetPct: pct });
+    if (!isLast) remaining -= solLamports;
+  }
+  return orders;
+}
+
+/**
  * Adds a completed DCA entry and records it in history.
  */
 export function recordDCAEntry(

@@ -5,7 +5,7 @@ import { fetchPriceData } from './price';
 import {
   calcDCAAmountUSD,
   updateAverageCost,
-  buildSellOrderSpecs,
+  buildAdaptiveSellOrderSpecs,
   recordDCAEntry,
   replaceSellOrders,
   LAMPORTS_PER_SOL,
@@ -519,7 +519,15 @@ async function handleProtectPosition(): Promise<void> {
     }
 
     // Targets based on the CURRENT market price → always above market (safe).
-    const specs = buildSellOrderSpecs(positionLamports, marketPrice);
+    const specs = buildAdaptiveSellOrderSpecs(positionLamports, marketPrice);
+    if (specs.length === 0) {
+      alert(
+        'Position trop petite pour placer un ordre : Jupiter exige au moins ' +
+        '5 USD par ordre. Accumule davantage de SOL puis réessaie.',
+      );
+      isLoading = false; render();
+      return;
+    }
     const placedAccounts: string[] = [];
     const errors: string[] = [];
     for (const spec of specs) {
@@ -817,7 +825,7 @@ async function handleDCA(): Promise<void> {
     // 6. Place new sell orders (always ABOVE market — hard guard in
     //    createSellOrder refuses any target at/below market price).
     //    Only orders that ACTUALLY execute on-chain are recorded as active.
-    const specs = buildSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
+    const specs = buildAdaptiveSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
     const placedAccounts: string[] = [];
     const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
