@@ -252,6 +252,173 @@ html, body {
   line-height: 1.4;
 }
 
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 12px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+}
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.tab-active {
+  background: var(--surface2);
+  color: var(--text);
+}
+.tab-content { padding-bottom: 40px; }
+
+/* ── Price card ── */
+.price-card { }
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.price-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.dca-status-pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.pill-purple { background: rgba(153,69,255,.15); color: var(--purple); }
+.pill-red    { background: rgba(241,20,90,.15);  color: var(--red); }
+
+/* ── Stats grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 12px 0;
+}
+.stat-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+.stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.stat-value { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.stat-sub   { font-size: 12px; font-weight: 500; }
+
+/* ── Order blocks with progress bars ── */
+.card-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.label-count { font-size: 11px; color: var(--text2); }
+
+.order-block {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.order-block:last-child { border-bottom: none; }
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+.order-target { display: block; font-size: 14px; }
+.order-qty    { display: block; font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+.progress-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+.fill-purple { background: var(--purple); }
+.fill-green  { background: var(--green); }
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text2);
+}
+.prog-pct { color: var(--text); font-weight: 600; }
+
+/* ── History table ── */
+.hist-table { }
+.hist-head {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1.4fr 1.4fr;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text2);
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.hist-row2 {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1.4fr 1.4fr;
+  font-size: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.hist-row2:last-child { border-bottom: none; }
+.hist-date  { color: var(--text2); font-size: 12px; }
+.hist-usd   { color: var(--text); font-weight: 600; }
+.hist-sol   { color: var(--green); font-weight: 500; }
+.hist-price2 { color: var(--text2); }
+
+/* ── Strategy grid ── */
+.strategy-grid { }
+.strategy-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--text2);
+  background: var(--surface2);
+}
+.active-strat {
+  background: rgba(153,69,255,.12);
+  color: var(--text);
+  border: 1px solid rgba(153,69,255,.3);
+}
+.strat-pause {
+  background: rgba(241,20,90,.08);
+  border-color: rgba(241,20,90,.3);
+}
+.strategy-row strong { font-size: 14px; color: inherit; }
+
 /* ── Wallet bar ── */
 .wallet-bar {
   display: flex;

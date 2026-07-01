@@ -34,6 +34,7 @@ let isLoading = false;
 let activeKeypair: Keypair | null = null;   // loaded once per session
 let walletAddress: string | null = null;
 let view: 'main' | 'setup' = 'main';
+let currentTab: 'tableau' | 'dca' | 'reglages' = 'tableau';
 
 // ─── DOM helpers ─────────────────────────────────────────────────────────────
 
@@ -52,20 +53,247 @@ function on(id: string, ev: string, fn: EventListener): void {
   document.getElementById(id)?.addEventListener(ev, fn);
 }
 
-// ─── Render: main view ───────────────────────────────────────────────────────
+// ─── Shared calculations ─────────────────────────────────────────────────────
 
-function renderMain(): string {
+function getCalcs() {
   const dcaAmountUSD = priceData
     ? calcDCAAmountUSD(priceData.change30dPct, state.baseAmountUSD)
     : state.baseAmountUSD;
-  const posSOL = state.totalSOLBoughtLamports / LAMPORTS_PER_SOL;
-  const posValue = posSOL * (priceData?.currentUSD ?? state.averageBuyPriceUSD);
-  const invested = state.totalUSDCSpentMicro / USDC_DECIMALS;
-  const pnl = posSOL > 0 ? posValue - invested : 0;
-  const pnlPct = invested > 0 ? (pnl / invested) * 100 : 0;
-  const done = isDCADoneToday(state);
-  const paused = dcaAmountUSD === 0;
-  const autoModeOn = state.walletMode === 'local' && state.autoExecute;
+  const posSOL    = state.totalSOLBoughtLamports / LAMPORTS_PER_SOL;
+  const cur       = priceData?.currentUSD ?? 0;
+  const posValue  = posSOL * (cur || state.averageBuyPriceUSD);
+  const invested  = state.totalUSDCSpentMicro / USDC_DECIMALS;
+  const pnl       = posSOL > 0 && cur > 0 ? posValue - invested : 0;
+  const pnlPct    = invested > 0 ? (pnl / invested) * 100 : 0;
+  const done      = isDCADoneToday(state);
+  const paused    = dcaAmountUSD === 0;
+  const autoOn    = state.walletMode === 'local' && state.autoExecute;
+  return { dcaAmountUSD, posSOL, posValue, invested, pnl, pnlPct, done, paused, autoOn };
+}
+
+// ─── Tab: Tableau de bord ────────────────────────────────────────────────────
+
+function renderTabDashboard(): string {
+  const { posSOL, posValue, invested, pnl, pnlPct } = getCalcs();
+  const cur = priceData?.currentUSD ?? 0;
+  const avg = state.averageBuyPriceUSD;
+  const activeOrders = state.sellOrders.filter(o => o.status === 'active');
+  const filledOrders = state.sellOrders.filter(o => o.status === 'filled');
+
+  // Progress bar for sell orders: how far current price is from avg to target
+  function orderProgress(targetPrice: number): number {
+    if (!cur || !avg || avg <= 0) return 0;
+    const range = targetPrice - avg;
+    if (range <= 0) return 0;
+    return Math.min(100, Math.max(0, ((cur - avg) / range) * 100));
+  }
+
+  return html`
+    <!-- Cours + statut DCA -->
+    <div class="card price-card">
+      <div class="price-row">
+        <div>
+          <div class="card-label">COURS SOL</div>
+          ${priceData
+            ? html`<div class="price-big">${fmtUSD(priceData.currentUSD)}</div>`
+            : '<div class="skeleton" style="width:120px;height:36px"></div>'}
+        </div>
+        <div class="price-right">
+          ${priceData ? html`
+            <div class="badge ${priceData.change30dPct >= 0 ? 'badge-green' : 'badge-red'}">
+              ${fmtPct(priceData.change30dPct)} / 30j
+            </div>
+            <div class="dca-status-pill ${getCalcs().paused ? 'pill-red' : 'pill-purple'}">
+              ${getCalcs().paused ? '⏸ DCA suspendu' : `DCA ${fmtUSD(getCalcs().dcaAmountUSD)}/j`}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Grille de stats -->
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <div class="stat-label">Investi</div>
+        <div class="stat-value">${fmtUSD(invested)}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Valeur actuelle</div>
+        <div class="stat-value">${posSOL > 0 && cur > 0 ? fmtUSD(posValue) : '—'}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Prix moyen DCA</div>
+        <div class="stat-value">${avg > 0 ? fmtUSD(avg) : '—'}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">P&L latent</div>
+        <div class="stat-value ${pnl > 0 ? 'green' : pnl < 0 ? 'red' : ''}">
+          ${posSOL > 0 && cur > 0
+            ? html`${pnl >= 0 ? '+' : ''}${fmtUSD(pnl)}<br><span class="stat-sub">${fmtPct(pnlPct)}</span>`
+            : '—'}
+        </div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">SOL accumulé</div>
+        <div class="stat-value">${posSOL > 0 ? fmt(posSOL, 4) : '0'}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Nb d'achats</div>
+        <div class="stat-value">${state.dcaHistory.length}</div>
+      </div>
+    </div>
+
+    <!-- Ordres de vente avec barres de progression -->
+    <div class="card">
+      <div class="card-label-row">
+        <span class="card-label">ORDRES DE VENTE</span>
+        <span class="label-count">${activeOrders.length} actif${activeOrders.length > 1 ? 's' : ''} • ${filledOrders.length} exécuté${filledOrders.length > 1 ? 's' : ''}</span>
+      </div>
+      ${activeOrders.length === 0
+        ? '<div class="empty">Les ordres apparaîtront après le premier achat DCA</div>'
+        : activeOrders.map(o => {
+            const prog = orderProgress(o.targetPriceUSD);
+            const reached = cur >= o.targetPriceUSD;
+            return html`
+              <div class="order-block">
+                <div class="order-header">
+                  <div>
+                    <span class="order-target">+${o.targetPct}% → <strong>${fmtUSD(o.targetPriceUSD)}</strong></span>
+                    <span class="order-qty">${fmtSOL(o.solLamports)} à vendre</span>
+                  </div>
+                  <span class="badge ${reached ? 'badge-green' : 'badge-yellow'}">${reached ? '✓ atteint' : 'en attente'}</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill ${reached ? 'fill-green' : 'fill-purple'}" style="width:${prog}%"></div>
+                </div>
+                <div class="progress-labels">
+                  <span>${avg > 0 ? fmtUSD(avg) : '—'} (prix moy.)</span>
+                  <span class="prog-pct">${Math.round(prog)}%</span>
+                  <span>${fmtUSD(o.targetPriceUSD)}</span>
+                </div>
+              </div>`;
+          }).join('')
+      }
+    </div>
+
+    <!-- Historique complet -->
+    <div class="card">
+      <div class="card-label-row">
+        <span class="card-label">HISTORIQUE DES ACHATS</span>
+        <span class="label-count">${state.dcaHistory.length} au total</span>
+      </div>
+      ${state.dcaHistory.length === 0
+        ? '<div class="empty">Aucun achat encore</div>'
+        : html`
+          <div class="hist-table">
+            <div class="hist-head">
+              <span>Date</span><span>Montant</span><span>SOL acheté</span><span>Prix</span>
+            </div>
+            ${[...state.dcaHistory].reverse().map(h => html`
+              <div class="hist-row2">
+                <span class="hist-date">${h.date}</span>
+                <span class="hist-usd">${fmtUSD(h.amountUSD)}</span>
+                <span class="hist-sol">${fmt(h.solBoughtLamports / LAMPORTS_PER_SOL, 4)}</span>
+                <span class="hist-price2">${fmtUSD(h.solPriceUSD)}</span>
+              </div>`).join('')}
+          </div>`
+      }
+    </div>`;
+}
+
+// ─── Tab: DCA ────────────────────────────────────────────────────────────────
+
+function renderTabDCA(): string {
+  const { dcaAmountUSD, done, paused, autoOn } = getCalcs();
+
+  return html`
+    <!-- Stratégie DCA -->
+    <div class="card">
+      <div class="card-label">STRATÉGIE EN COURS</div>
+      <div class="strategy-grid">
+        <div class="strategy-row ${!priceData || (!paused && getCalcs().dcaAmountUSD === state.baseAmountUSD) ? 'active-strat' : ''}">
+          <span>Entre −10% et +20%</span><strong>${fmtUSD(state.baseAmountUSD)}/jour</strong>
+        </div>
+        <div class="strategy-row ${priceData && !paused && dcaAmountUSD >= 10 && (priceData?.change30dPct ?? 0) <= -10 && (priceData?.change30dPct ?? 0) > -15 ? 'active-strat' : ''}">
+          <span>Baisse ≥ −10%</span><strong>${fmtUSD(state.baseAmountUSD)}/jour</strong>
+        </div>
+        <div class="strategy-row ${priceData && !paused && dcaAmountUSD === 15 ? 'active-strat' : ''}">
+          <span>Baisse ≥ −15%</span><strong>15 $/jour</strong>
+        </div>
+        <div class="strategy-row ${priceData && !paused && dcaAmountUSD === 20 ? 'active-strat' : ''}">
+          <span>Baisse ≥ −20%</span><strong>20 $/jour</strong>
+        </div>
+        <div class="strategy-row ${paused ? 'active-strat strat-pause' : ''}">
+          <span>Hausse &gt; +20%</span><strong>⏸ Pause</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action -->
+    <div class="card action-card">
+      <div class="card-label">ACTION DCA DU JOUR</div>
+      ${!walletAddress ? html`
+        <p class="hint">Configure d'abord ton wallet pour pouvoir acheter.</p>
+        <button class="btn btn-primary" id="btnGoSetup">⚙ Configurer le wallet</button>
+      ` : paused ? html`
+        <div class="badge badge-red" style="margin-bottom:12px">⏸ DCA suspendu</div>
+        <p class="hint">SOL en hausse de ${priceData ? fmtPct(priceData.change30dPct) : '…'} sur 30j (> +20%).<br>Le bot reprendra dès que le cours corrige.</p>
+      ` : done ? html`
+        <div class="badge badge-green" style="margin-bottom:12px">✓ DCA exécuté aujourd'hui</div>
+        <p class="hint">Prochain achat : demain. Les ordres de vente sont actifs.</p>
+      ` : html`
+        <p class="dca-amount">Montant du jour : <strong>${fmtUSD(dcaAmountUSD)}</strong>
+          ${autoOn ? '<span class="auto-badge" style="margin-left:8px">AUTO</span>' : ''}
+        </p>
+        <button class="btn btn-primary ${isLoading ? 'loading' : ''}" id="btnDCA" ${isLoading ? 'disabled' : ''}>
+          ${isLoading ? '⏳ Transaction en cours…' : `▶ Acheter ${fmtUSD(dcaAmountUSD)} de SOL`}
+        </button>
+        ${autoOn ? '<p class="hint-small">Mode AUTO activé — s\'exécute seul à l\'ouverture de l\'app.</p>' : ''}
+      `}
+    </div>
+
+    <div class="footer">
+      <button class="btn btn-ghost" id="btnRefresh">↻ Actualiser le prix</button>
+      <span class="footer-note">Ordres de vente on-chain Jupiter • s'exécutent seuls 24h/24</span>
+    </div>`;
+}
+
+// ─── Tab: Paramètres ─────────────────────────────────────────────────────────
+
+function renderTabSettings(): string {
+  return html`
+    <div class="card">
+      <div class="card-label">PARAMÈTRES DCA</div>
+      <div class="setting-row">
+        <label>Montant DCA de base (USD)</label>
+        <input type="number" id="inputBase" value="${state.baseAmountUSD}" min="1" max="1000" step="1" />
+      </div>
+      <div class="setting-row">
+        <label>RPC Solana</label>
+        <input type="text" id="inputRPC" value="${state.rpcEndpoint}" placeholder="https://api.mainnet-beta.solana.com" />
+      </div>
+      <button class="btn btn-secondary" id="btnSaveSettings">Enregistrer</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">ZONE DANGER</div>
+      <p class="hint">Réinitialise tout l'historique et la position. Les ordres on-chain ne sont pas annulés.</p>
+      <button class="btn btn-danger" id="btnReset">Réinitialiser tout l'historique</button>
+    </div>`;
+}
+
+// ─── Render: main view ───────────────────────────────────────────────────────
+
+function renderMain(): string {
+  const { autoOn, done, paused } = getCalcs();
+
+  const tabContent = currentTab === 'tableau'
+    ? renderTabDashboard()
+    : currentTab === 'dca'
+      ? renderTabDCA()
+      : renderTabSettings();
+
+  const dcaBadge = done ? '✓' : paused ? '⏸' : '●';
 
   return html`
     <div class="app">
@@ -74,122 +302,22 @@ function renderMain(): string {
         <button class="btn-chip" id="btnSetup">⚙ Wallet</button>
       </header>
 
-      <!-- Statut wallet -->
       <div class="wallet-bar ${walletAddress ? 'wallet-ok' : 'wallet-missing'}">
         ${walletAddress
           ? html`<span>◉ ${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)}</span>
-                 ${autoModeOn ? '<span class="auto-badge">AUTO</span>' : ''}`
-          : '<span>⚠ Aucun wallet configuré — configure d\'abord le wallet</span>'}
+                 ${autoOn ? '<span class="auto-badge">AUTO</span>' : ''}`
+          : '<span>⚠ Aucun wallet — configure d\'abord le wallet ⚙</span>'}
       </div>
 
-      <!-- Prix -->
-      <div class="card ${!priceData ? 'loading' : ''}">
-        <div class="card-label">COURS SOL</div>
-        ${priceData ? html`
-          <div class="price-big">${fmtUSD(priceData.currentUSD)}</div>
-          <div class="badge ${priceData.change30dPct >= 0 ? 'badge-green' : 'badge-red'}">
-            ${fmtPct(priceData.change30dPct)} sur 30j
-          </div>
-          <div class="price-hint">
-            ${paused
-              ? '⏸ DCA suspendu — hausse > +20%'
-              : dcaAmountUSD > state.baseAmountUSD
-                ? `DCA renforcé : ${fmtUSD(dcaAmountUSD)}/jour`
-                : `DCA normal : ${fmtUSD(dcaAmountUSD)}/jour`}
-          </div>
-        ` : '<div class="skeleton"></div>'}
+      <nav class="tabs">
+        <button class="tab ${currentTab === 'tableau' ? 'tab-active' : ''}" id="tabTableau">📊 Tableau</button>
+        <button class="tab ${currentTab === 'dca' ? 'tab-active' : ''}" id="tabDCA">${dcaBadge} DCA</button>
+        <button class="tab ${currentTab === 'reglages' ? 'tab-active' : ''}" id="tabReglages">⚙ Réglages</button>
+      </nav>
+
+      <div class="tab-content">
+        ${tabContent}
       </div>
-
-      <!-- Position -->
-      <div class="card">
-        <div class="card-label">MA POSITION</div>
-        <div class="stat-row"><span>SOL accumulé</span><strong>${fmtSOL(state.totalSOLBoughtLamports)}</strong></div>
-        <div class="stat-row"><span>Investi</span><strong>${fmtUSD(invested)}</strong></div>
-        <div class="stat-row"><span>Prix moyen d'achat</span><strong>${state.averageBuyPriceUSD > 0 ? fmtUSD(state.averageBuyPriceUSD) : '—'}</strong></div>
-        ${posSOL > 0 && priceData ? html`
-          <div class="stat-row"><span>Valeur actuelle</span><strong>${fmtUSD(posValue)}</strong></div>
-          <div class="stat-row"><span>P&L latent</span>
-            <strong class="${pnl >= 0 ? 'green' : 'red'}">${pnl >= 0 ? '+' : ''}${fmtUSD(pnl)} (${fmtPct(pnlPct)})</strong>
-          </div>
-        ` : ''}
-      </div>
-
-      <!-- Ordres de vente -->
-      <div class="card">
-        <div class="card-label">ORDRES DE VENTE ACTIFS</div>
-        ${state.sellOrders.filter(o => o.status === 'active').length === 0
-          ? '<div class="empty">Aucun ordre — ils apparaissent après le premier achat</div>'
-          : state.sellOrders.filter(o => o.status === 'active').map(o => html`
-              <div class="order-row">
-                <div>
-                  <span class="order-label">+${o.targetPct}% → ${fmtUSD(o.targetPriceUSD)}</span>
-                  <span class="order-amount">${fmtSOL(o.solLamports)}</span>
-                </div>
-                <span class="badge badge-yellow">actif ✓</span>
-              </div>`).join('')
-        }
-      </div>
-
-      <!-- Action DCA -->
-      <div class="card action-card">
-        <div class="card-label">ACTION DCA</div>
-        ${!walletAddress ? html`
-          <p class="hint">Configure d'abord ton wallet.</p>
-          <button class="btn btn-primary" id="btnGoSetup">Configurer le wallet</button>
-        ` : paused ? html`
-          <div class="badge badge-red">DCA suspendu — SOL en hausse > +20% sur 30j</div>
-          <p class="hint">Le bot reprendra dès que le cours corrige.</p>
-        ` : done ? html`
-          <div class="badge badge-green">✓ DCA exécuté aujourd'hui</div>
-          <p class="hint">Prochain achat demain.</p>
-        ` : autoModeOn ? html`
-          <p class="dca-amount">Achat automatique de <strong>${fmtUSD(dcaAmountUSD)}</strong></p>
-          <button class="btn btn-primary ${isLoading ? 'loading' : ''}" id="btnDCA" ${isLoading ? 'disabled' : ''}>
-            ${isLoading ? 'Transaction en cours…' : `▶ Exécuter maintenant — ${fmtUSD(dcaAmountUSD)}`}
-          </button>
-          <p class="hint-small">En mode AUTO, l'app exécute dès l'ouverture.</p>
-        ` : html`
-          <p class="dca-amount">Acheter <strong>${fmtUSD(dcaAmountUSD)}</strong> de SOL</p>
-          <button class="btn btn-primary ${isLoading ? 'loading' : ''}" id="btnDCA" ${isLoading ? 'disabled' : ''}>
-            ${isLoading ? 'Transaction en cours…' : `Exécuter le DCA — ${fmtUSD(dcaAmountUSD)}`}
-          </button>
-        `}
-      </div>
-
-      <!-- Historique -->
-      ${state.dcaHistory.length > 0 ? html`
-        <div class="card">
-          <div class="card-label">HISTORIQUE DCA (${state.dcaHistory.length} achats)</div>
-          ${[...state.dcaHistory].reverse().slice(0, 10).map(h => html`
-            <div class="hist-row">
-              <span class="hist-date">${h.date}</span>
-              <span class="hist-details">
-                ${fmtUSD(h.amountUSD)} → ${fmtSOL(h.solBoughtLamports)}
-                <span class="hist-price">@ ${fmtUSD(h.solPriceUSD)}</span>
-              </span>
-            </div>`).join('')}
-        </div>
-      ` : ''}
-
-      <!-- Paramètres -->
-      <div class="card">
-        <div class="card-label">PARAMÈTRES</div>
-        <div class="setting-row">
-          <label>Montant DCA de base (USD)</label>
-          <input type="number" id="inputBase" value="${state.baseAmountUSD}" min="1" max="1000" step="1" />
-        </div>
-        <div class="setting-row">
-          <label>RPC Solana</label>
-          <input type="text" id="inputRPC" value="${state.rpcEndpoint}" placeholder="https://api.mainnet-beta.solana.com" />
-        </div>
-        <button class="btn btn-secondary" id="btnSaveSettings">Enregistrer</button>
-        <button class="btn btn-danger" id="btnReset">Réinitialiser tout</button>
-      </div>
-
-      <footer class="footer">
-        <button class="btn btn-ghost" id="btnRefresh">↻ Actualiser le prix</button>
-        <span class="footer-note">Ordres de vente on-chain Jupiter • s'exécutent seuls 24h/24</span>
-      </footer>
     </div>`;
 }
 
@@ -278,11 +406,15 @@ function bindEvents(): void {
     return;
   }
 
-  // main view
-  on('btnSetup',        'click', () => { view = 'setup'; render(); });
-  on('btnGoSetup',      'click', () => { view = 'setup'; render(); });
-  on('btnDCA',          'click', () => { if (!isLoading) void handleDCA(); });
-  on('btnRefresh',      'click', () => void refreshPrice().then(render));
+  // main view — tabs
+  on('tabTableau',  'click', () => { currentTab = 'tableau';  render(); });
+  on('tabDCA',      'click', () => { currentTab = 'dca';      render(); });
+  on('tabReglages', 'click', () => { currentTab = 'reglages'; render(); });
+
+  on('btnSetup',   'click', () => { view = 'setup'; render(); });
+  on('btnGoSetup', 'click', () => { view = 'setup'; render(); });
+  on('btnDCA',     'click', () => { if (!isLoading) void handleDCA(); });
+  on('btnRefresh', 'click', () => void refreshPrice().then(render));
   on('btnSaveSettings', 'click', () => {
     const base = parseFloat((document.getElementById('inputBase') as HTMLInputElement).value);
     const rpc  = (document.getElementById('inputRPC') as HTMLInputElement).value.trim();
