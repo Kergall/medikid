@@ -146,11 +146,26 @@ export async function buildCancelOrdersTransaction(
   return txs;
 }
 
-export async function fetchOpenOrders(
-  walletPubkey: string,
-): Promise<Array<{ orderKey: string; inputMint: string }>> {
+export interface OpenOrder {
+  orderKey: string;
+  inputMint: string;
+  makingLamports: number; // remaining SOL locked in the order (if input = SOL)
+}
+
+export async function fetchOpenOrders(walletPubkey: string): Promise<OpenOrder[]> {
   const res = await fetch(`/api/open-orders?wallet=${walletPubkey}`);
   if (!res.ok) return [];
-  const data = await res.json() as { orders?: Array<{ orderKey: string; inputMint: string }> };
-  return data.orders ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = await res.json() as { orders?: any[] };
+  const orders = data.orders ?? [];
+  return orders
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((o: any) => ({
+      orderKey: o.orderKey ?? o.publicKey ?? o.order ?? '',
+      inputMint: o.inputMint ?? o.account?.inputMint ?? '',
+      makingLamports: Number(
+        o.remainingMakingAmount ?? o.makingAmount ?? o.account?.makingAmount ?? 0,
+      ),
+    }))
+    .filter((o: OpenOrder) => o.orderKey);
 }

@@ -16,6 +16,7 @@ import {
   buildSwapTransaction,
   buildLimitOrderTransaction,
   buildCancelOrdersTransaction,
+  fetchOpenOrders,
 } from './jupiter';
 import { Keypair } from '@solana/web3.js';
 import { keypairFromBase58, signAndSendLocal, getWalletSolLamports } from './signer';
@@ -281,6 +282,18 @@ function renderTabSettings(): string {
     </div>
 
     <div class="card">
+      <div class="card-label">MES ORDRES SUR JUPITER (SOL bloqué)</div>
+      <p class="hint">
+        Quand un ordre de vente est placé, ton SOL est <strong>verrouillé</strong>
+        dedans jusqu'à ce que le prix atteigne la cible. Ici tu vois le SOL bloqué
+        et tu peux tout annuler pour le récupérer dans le wallet.
+      </p>
+      <button class="btn btn-secondary" id="btnViewOrders">🔍 Voir mes ordres ouverts</button>
+      <div id="ordersResult" class="hint-small" style="margin:8px 0"></div>
+      <button class="btn btn-danger" id="btnCancelAllOrders">✖ Annuler tous les ordres (récupérer le SOL)</button>
+    </div>
+
+    <div class="card">
       <div class="card-label">SYNCHRONISER LA POSITION</div>
       <p class="hint">
         Si le tableau de bord ne correspond pas à ton wallet (ex : achats en double
@@ -463,6 +476,77 @@ function bindEvents(): void {
   on('btnReadWallet', 'click', () => void handleReadWallet());
   on('btnApplyPosition', 'click', () => handleApplyPosition());
   on('btnReplaceOrders', 'click', () => { if (!isLoading) void handleReplaceSellOrders(); });
+  on('btnViewOrders', 'click', () => void handleViewOrders());
+  on('btnCancelAllOrders', 'click', () => { if (!isLoading) void handleCancelAllOrders(); });
+}
+
+// ─── Jupiter open orders (locked SOL) ────────────────────────────────────────
+
+let lastFetchedOrderKeys: string[] = [];
+
+async function handleViewOrders(): Promise<void> {
+  if (!walletAddress) { alert('Configure d\'abord le wallet.'); return; }
+  const el = document.getElementById('ordersResult');
+  if (el) el.textContent = '⏳ Lecture des ordres sur Jupiter…';
+  try {
+    const orders = await fetchOpenOrders(walletAddress);
+    lastFetchedOrderKeys = orders.map(o => o.orderKey);
+    const totalLocked = orders.reduce((s, o) => s + o.makingLamports, 0) / LAMPORTS_PER_SOL;
+    if (el) {
+      el.innerHTML = orders.length === 0
+        ? 'Aucun ordre ouvert. Ton SOL (s\'il y en a) est libre dans le wallet.'
+        : `<strong>${orders.length} ordre(s) ouvert(s)</strong> — ${fmt(totalLocked, 4)} SOL bloqué au total, ` +
+          `en attente que le prix atteigne les cibles. Annule pour récupérer ce SOL dans le wallet.`;
+    }
+  } catch (e) {
+    if (el) el.textContent = `Erreur : ${(e as Error).message}`;
+  }
+}
+
+async function handleCancelAllOrders(): Promise<void> {
+  if (!walletAddress) { alert('Configure d\'abord le wallet.'); return; }
+  // Refresh the order list first so we cancel what's actually open.
+  let keys = lastFetchedOrderKeys;
+  if (keys.length === 0) {
+    const orders = await fetchOpenOrders(walletAddress).catch(() => []);
+    keys = orders.map(o => o.orderKey);
+  }
+  if (keys.length === 0) { alert('Aucun ordre ouvert à annuler.'); return; }
+  if (!confirm(
+    `Annuler ${keys.length} ordre(s) ? Le SOL verrouillé reviendra dans ton wallet ` +
+    `(en SOL, pas en USDC). Coûte quelques frais.`,
+  )) return;
+
+  isLoading = true;
+  render();
+  try {
+    const keypair = await loadKeypairForExecution();
+    if (!keypair) { isLoading = false; render(); return; }
+    const pubkey = keypair.publicKey.toBase58();
+
+    const cancelTxs = await buildCancelOrdersTransaction(keys, pubkey);
+    let ok = 0;
+    for (const tx of cancelTxs) {
+      try { await signAndSendLocal(tx, keypair, state.rpcEndpoint); ok++; }
+      catch (e) { console.warn('Annulation échouée:', e); }
+    }
+
+    // Mark local sell orders as cancelled to keep the dashboard in sync.
+    state.sellOrders = state.sellOrders.map(o =>
+      o.status === 'active' ? { ...o, status: 'cancelled' as const } : o,
+    );
+    saveState(state);
+    lastFetchedOrderKeys = [];
+    alert(
+      `✅ ${ok}/${cancelTxs.length} ordre(s) annulé(s). Le SOL revient dans ton wallet.\n` +
+      `Pour le reconvertir en USDC, il faudrait le vendre (ce que font les ordres au prix cible).`,
+    );
+  } catch (err) {
+    alert(`Erreur : ${(err as Error).message}`);
+  } finally {
+    isLoading = false;
+    render();
+  }
 }
 
 // ─── Reconciliation ──────────────────────────────────────────────────────────
