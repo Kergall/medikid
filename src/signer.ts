@@ -23,23 +23,34 @@ export async function getWalletSolLamports(
   return connection.getBalance(new PublicKey(pubkey), 'confirmed');
 }
 
-// USDC balance (micro-USDC) held across the wallet's token accounts.
+const TOKEN_PROGRAM = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const ATA_PROGRAM = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
+// Derive the associated USDC token account for an owner.
+function usdcAta(owner: PublicKey): PublicKey {
+  const [ata] = PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), TOKEN_PROGRAM.toBuffer(), new PublicKey(USDC_MINT).toBuffer()],
+    ATA_PROGRAM,
+  );
+  return ata;
+}
+
+// USDC balance (micro-USDC) in the wallet's associated USDC account.
+// Uses getTokenAccountBalance (supported by every RPC) rather than a
+// jsonParsed account scan (which some public RPCs don't support).
 export async function getWalletUsdcMicro(
   pubkey: string,
   preferredRpc: string,
 ): Promise<number> {
   const connection = new Connection(proxyRpcUrl(preferredRpc), 'confirmed');
-  const resp = await connection.getParsedTokenAccountsByOwner(
-    new PublicKey(pubkey),
-    { mint: new PublicKey(USDC_MINT) },
-  );
-  let total = 0;
-  for (const { account } of resp.value) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const amt = (account.data as any)?.parsed?.info?.tokenAmount?.amount;
-    if (amt) total += Number(amt);
+  const ata = usdcAta(new PublicKey(pubkey));
+  try {
+    const bal = await connection.getTokenAccountBalance(ata, 'confirmed');
+    return Number(bal.value.amount);
+  } catch {
+    // Account may not exist yet (never received USDC) → 0.
+    return 0;
   }
-  return total;
 }
 
 export function keypairFromBase58(privateKeyBase58: string): Keypair {
