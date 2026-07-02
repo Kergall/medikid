@@ -9,7 +9,9 @@ const DEFAULT_STATE: AppState = {
   lastDCADate: null,
   dcaEnabled: true,
   dcaHistory: [],
+  pendingDCA: null,
   sellOrders: [],
+  lastOrdersPlacedAt: 0,
   baseAmountUSD: 10,
   rpcEndpoint: '', // empty = use the proxy's built-in public RPC pool
   walletMode: 'none',

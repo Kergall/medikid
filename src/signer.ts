@@ -89,10 +89,34 @@ export function keypairFromBase58(privateKeyBase58: string): Keypair {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+// Looks up a signature's real on-chain outcome (used to resolve a pending
+// buy after a confirmation timeout, so a retry can never double-spend).
+export async function getSignatureOutcome(
+  signature: string,
+  preferredRpc: string,
+): Promise<'confirmed' | 'failed' | 'unknown'> {
+  try {
+    const connection = new Connection(proxyRpcUrl(preferredRpc), 'confirmed');
+    const { value } = await connection.getSignatureStatus(signature, {
+      searchTransactionHistory: true,
+    });
+    if (!value) return 'unknown';
+    if (value.err) return 'failed';
+    if (
+      value.confirmationStatus === 'confirmed' ||
+      value.confirmationStatus === 'finalized'
+    ) return 'confirmed';
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 export async function signAndSendLocal(
   tx: VersionedTransaction,
   keypair: Keypair,
   preferredRpc: string, // optional dedicated RPC; else the proxy's public pool
+  onSent?: (signature: string) => void, // fires as soon as the tx is broadcast
 ): Promise<string> {
   const connection = new Connection(proxyRpcUrl(preferredRpc), 'confirmed');
 
@@ -124,6 +148,10 @@ export async function signAndSendLocal(
     }
     throw err;
   }
+
+  // Let the caller persist the signature before we wait on confirmation, so
+  // a timeout can be resolved later instead of triggering a duplicate buy.
+  try { onSent?.(signature); } catch { /* never block the send */ }
 
   // Public RPCs drop transactions, so rebroadcast aggressively while polling.
   // We poll signature status (with history) rather than comparing block

@@ -21,7 +21,7 @@ import {
 import { Keypair } from '@solana/web3.js';
 import {
   keypairFromBase58, signAndSendLocal, executeTrigger,
-  getWalletSolLamports, getWalletUsdcMicro,
+  getWalletSolLamports, getWalletUsdcMicro, getSignatureOutcome,
 } from './signer';
 import { encryptKey, decryptKey, exportAutoKey, importAutoKey, decryptWithAutoKey } from './crypto';
 import {
@@ -39,6 +39,9 @@ let activeKeypair: Keypair | null = null;   // loaded once per session
 let walletAddress: string | null = null;
 let view: 'main' | 'setup' = 'main';
 let currentTab: 'tableau' | 'dca' | 'reglages' = 'tableau';
+// Live wallet balances (refreshed on boot, after each DCA, and periodically)
+let walletUsdcMicro: number | null = null;
+let walletSolLamports: number | null = null;
 
 // ─── DOM helpers ─────────────────────────────────────────────────────────────
 
@@ -145,7 +148,29 @@ function renderTabDashboard(): string {
         <div class="stat-label">Nb d'achats</div>
         <div class="stat-value">${state.dcaHistory.length}</div>
       </div>
+      <div class="stat-cell">
+        <div class="stat-label">USDC disponible</div>
+        <div class="stat-value">${walletUsdcMicro !== null ? fmt(walletUsdcMicro / USDC_DECIMALS) : '—'}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Réserve de DCA</div>
+        <div class="stat-value">${(() => {
+          if (walletUsdcMicro === null) return '—';
+          const amt = getCalcs().dcaAmountUSD;
+          if (amt <= 0) return '⏸';
+          const days = Math.floor(walletUsdcMicro / USDC_DECIMALS / amt);
+          return html`≈ ${days} j<br><span class="stat-sub">à ${fmtUSD(amt)}/jour</span>`;
+        })()}</div>
+      </div>
     </div>
+
+    ${walletSolLamports !== null && walletSolLamports < 0.005 * LAMPORTS_PER_SOL ? html`
+      <div class="card" style="border:1px solid #b8544a">
+        <p class="hint" style="margin:0">
+          ⚠️ <strong>SOL de frais presque épuisé</strong> (${fmtSOL(walletSolLamports)}).
+          Envoie ~0,02 SOL au wallet bot, sinon les prochaines transactions échoueront.
+        </p>
+      </div>` : ''}
 
     <!-- Ordres de vente avec barres de progression -->
     <div class="card">
@@ -320,6 +345,17 @@ function renderTabSettings(): string {
     </div>
 
     <div class="card">
+      <div class="card-label">SAUVEGARDE</div>
+      <p class="hint">
+        Télécharge l'historique et la position du bot (fichier JSON). L'historique
+        vit dans le navigateur : si tu effaces ses données, il est perdu — pas tes
+        fonds, qui restent sur la blockchain. Garde aussi ta clé privée en lieu sûr :
+        elle seule donne accès au wallet.
+      </p>
+      <button class="btn btn-secondary" id="btnExport">💾 Exporter l'historique (JSON)</button>
+    </div>
+
+    <div class="card">
       <div class="card-label">ZONE DANGER</div>
       <p class="hint">Réinitialise tout l'historique et la position. Les ordres on-chain ne sont pas annulés.</p>
       <button class="btn btn-danger" id="btnReset">Réinitialiser tout l'historique</button>
@@ -459,7 +495,12 @@ function bindEvents(): void {
   on('btnSetup',   'click', () => { view = 'setup'; render(); });
   on('btnGoSetup', 'click', () => { view = 'setup'; render(); });
   on('btnDCA',     'click', () => { if (!isLoading) void handleDCA(); });
-  on('btnRefresh', 'click', () => void refreshPrice().then(render));
+  on('btnRefresh', 'click', () => void (async () => {
+    await refreshPrice();
+    await syncOrdersFromChain();
+    await loadBalances();
+    render();
+  })());
   on('btnSaveSettings', 'click', () => {
     const base = parseFloat((document.getElementById('inputBase') as HTMLInputElement).value);
     const rpc  = (document.getElementById('inputRPC') as HTMLInputElement).value.trim();
@@ -478,6 +519,14 @@ function bindEvents(): void {
   on('btnViewOrders', 'click', () => void handleViewOrders());
   on('btnCancelAllOrders', 'click', () => { if (!isLoading) void handleCancelAllOrders(); });
   on('btnProtect', 'click', () => { if (!isLoading) void handleProtectPosition(); });
+  on('btnExport', 'click', () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sol-dca-bot-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 }
 
 // Place sell orders on the wallet's free SOL, targets ABOVE current market.
@@ -551,6 +600,7 @@ async function handleProtectPosition(): Promise<void> {
       (positionLamports / LAMPORTS_PER_SOL) * marketPrice * USDC_DECIMALS,
     );
     state.sellOrders = replaceSellOrders(state.sellOrders, okSpecs, okAccounts);
+    if (okAccounts.length > 0) state.lastOrdersPlacedAt = Date.now();
     saveState(state);
 
     alert(
@@ -764,9 +814,109 @@ async function loadKeypairForExecution(): Promise<Keypair | null> {
   }
 }
 
+// ─── Pending-buy resolution (anti double-achat) ──────────────────────────────
+// If a previous swap was broadcast but its confirmation failed/timed out, we
+// must learn its real outcome before ever buying again.
+
+async function resolvePendingDCA(): Promise<'recorded' | 'cleared' | 'wait' | 'none'> {
+  const p = state.pendingDCA;
+  if (!p) return 'none';
+
+  const outcome = await getSignatureOutcome(p.signature, state.rpcEndpoint);
+
+  if (outcome === 'confirmed') {
+    // The "failed" buy actually landed → record it, don't buy again today.
+    const updated = updateAverageCost(
+      state, p.solLamports, Math.floor(p.amountUSD * USDC_DECIMALS),
+    );
+    state = { ...state, ...updated };
+    state.dcaHistory = recordDCAEntry(state, {
+      date: p.date,
+      amountUSD: p.amountUSD,
+      solPriceUSD: p.priceUSD,
+      solBoughtLamports: p.solLamports,
+      txSignature: p.signature,
+    });
+    state.lastDCADate = p.date;
+    state.pendingDCA = null;
+    saveState(state);
+    await saveLastDCADate(p.date);
+    return 'recorded';
+  }
+
+  if (outcome === 'failed') {
+    state.pendingDCA = null;
+    saveState(state);
+    return 'cleared';
+  }
+
+  // Unknown: the tx may still land within its blockhash window (~1 min).
+  // Only clear once it's old enough to be definitively dead.
+  if (Date.now() - p.sentAt > 5 * 60_000) {
+    state.pendingDCA = null;
+    saveState(state);
+    return 'cleared';
+  }
+  return 'wait';
+}
+
+// ─── On-chain order sync ─────────────────────────────────────────────────────
+// A locally-"active" order that no longer appears in Jupiter's open orders has
+// been executed (we mark our own cancellations separately) → mark it filled so
+// the dashboard reflects reality.
+
+async function syncOrdersFromChain(): Promise<void> {
+  if (!walletAddress) return;
+  const hasActive = state.sellOrders.some(o => o.status === 'active' && o.accountPubkey);
+  if (!hasActive) return;
+  // Jupiter's indexer can lag right after placement — don't sync too soon.
+  if (Date.now() - (state.lastOrdersPlacedAt || 0) < 10 * 60_000) return;
+
+  try {
+    const open = await fetchOpenOrders(walletAddress);
+    const openKeys = new Set(open.map(o => o.orderKey));
+    let changed = false;
+    state.sellOrders = state.sellOrders.map(o => {
+      if (o.status === 'active' && o.accountPubkey && !openKeys.has(o.accountPubkey)) {
+        changed = true;
+        return { ...o, status: 'filled' as const };
+      }
+      return o;
+    });
+    if (changed) saveState(state);
+  } catch { /* API unreachable — try again next cycle */ }
+}
+
+// ─── Wallet balances (dashboard info) ────────────────────────────────────────
+
+async function loadBalances(): Promise<void> {
+  if (!walletAddress) return;
+  const [sol, usdc] = await Promise.all([
+    getWalletSolLamports(walletAddress, state.rpcEndpoint).catch(() => null),
+    getWalletUsdcMicro(walletAddress, state.rpcEndpoint).catch(() => null),
+  ]);
+  if (sol !== null) walletSolLamports = sol;
+  if (usdc !== null) walletUsdcMicro = usdc;
+}
+
 async function handleDCA(): Promise<void> {
   if (!priceData) { await refreshPrice(); }
   if (!priceData) { alert('Prix non disponible, réessaie.'); return; }
+
+  // Never buy while a previous buy's outcome is unknown.
+  const resolution = await resolvePendingDCA();
+  if (resolution === 'recorded') {
+    alert(
+      'ℹ️ Le précédent achat marqué "échoué" avait en réalité réussi sur la blockchain.\n' +
+      'Il vient d\'être enregistré — pas de nouvel achat aujourd\'hui (double achat évité).',
+    );
+    render();
+    return;
+  }
+  if (resolution === 'wait') {
+    alert('⏳ Une transaction précédente est peut-être encore en cours.\nAttends 2 minutes puis réessaie.');
+    return;
+  }
 
   const dcaAmountUSD = calcDCAAmountUSD(priceData.change30dPct, state.baseAmountUSD);
   if (dcaAmountUSD === 0 || isDCADoneToday(state)) return;
@@ -785,13 +935,28 @@ async function handleDCA(): Promise<void> {
       throw new Error(`Étape 1 (quote Jupiter) : ${(e as Error).message}`);
     });
 
-    // 2. Build + send swap tx
+    // 2. Build + send swap tx. The signature is persisted the moment the tx
+    //    is broadcast: if confirmation then fails/times out, the next attempt
+    //    resolves the real outcome instead of buying twice.
     const swapTx = await buildSwapTransaction(quote, pubkey).catch(e => {
       throw new Error(`Étape 2 (construction swap) : ${(e as Error).message}`);
     });
-    const swapSig = await signAndSendLocal(swapTx, keypair, state.rpcEndpoint).catch(e => {
+    const swapSig = await signAndSendLocal(swapTx, keypair, state.rpcEndpoint, sig => {
+      state.pendingDCA = {
+        date: todayISO(),
+        signature: sig,
+        amountUSD: dcaAmountUSD,
+        solLamports: quote.outAmountLamports,
+        priceUSD: quote.priceUSD,
+        sentAt: Date.now(),
+      };
+      saveState(state);
+    }).catch(e => {
       throw new Error(`Étape 3 (envoi RPC) : ${(e as Error).message}`);
     });
+
+    // Confirmed → the pending marker is no longer needed.
+    state.pendingDCA = null;
 
     // 3. Update position
     const usdcMicro = Math.floor(dcaAmountUSD * USDC_DECIMALS);
@@ -842,7 +1007,10 @@ async function handleDCA(): Promise<void> {
     const okSpecs = specs.filter((_, i) => placedAccounts[i]);
     const okAccounts = placedAccounts.filter(a => a);
     state.sellOrders = replaceSellOrders(state.sellOrders, okSpecs, okAccounts);
+    if (okAccounts.length > 0) state.lastOrdersPlacedAt = Date.now();
     saveState(state);
+
+    void loadBalances().then(render);
 
     const placedCount = okAccounts.length;
     alert(
@@ -924,6 +1092,19 @@ async function boot(): Promise<void> {
   await refreshPrice();
   render();
 
+  // Resolve any buy whose confirmation previously failed (never double-buy),
+  // then sync sell-order statuses and balances with the chain.
+  const resolution = await resolvePendingDCA();
+  if (resolution === 'recorded') {
+    alert(
+      'ℹ️ Un achat précédent marqué "échoué" avait en réalité réussi.\n' +
+      'Il a été enregistré dans l\'historique (double achat évité).',
+    );
+  }
+  await syncOrdersFromChain();
+  void loadBalances().then(render);
+  render();
+
   // Auto-execute DCA if mode auto is on and DCA not done today
   if (
     activeKeypair &&
@@ -936,8 +1117,13 @@ async function boot(): Promise<void> {
     await handleDCA();
   }
 
-  // Refresh price every 5 minutes
-  setInterval(async () => { await refreshPrice(); render(); }, 5 * 60 * 1000);
+  // Periodic refresh: price, order statuses, balances
+  setInterval(async () => {
+    await refreshPrice();
+    await syncOrdersFromChain();
+    await loadBalances();
+    render();
+  }, 5 * 60 * 1000);
 }
 
 boot();

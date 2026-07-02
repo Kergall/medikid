@@ -183,9 +183,11 @@ export interface OpenOrder {
   makingLamports: number; // remaining SOL locked in the order (if input = SOL)
 }
 
+// Throws on API failure — an empty result must mean "no open orders",
+// never "the request failed" (callers may treat missing orders as filled).
 export async function fetchOpenOrders(walletPubkey: string): Promise<OpenOrder[]> {
   const res = await fetch(`/api/open-orders?wallet=${walletPubkey}`);
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`openOrders ${res.status}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = await res.json() as { orders?: any[] };
   const orders = data.orders ?? [];

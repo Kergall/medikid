@@ -16,6 +16,17 @@ export interface SellOrder {
 
 export type WalletMode = 'none' | 'phantom' | 'local';
 
+// A swap that was sent on-chain but whose confirmation failed or timed out.
+// Kept until its real outcome is known, so a retry can never double-buy.
+export interface PendingDCA {
+  date: string;
+  signature: string;
+  amountUSD: number;
+  solLamports: number;
+  priceUSD: number;
+  sentAt: number; // epoch ms
+}
+
 export interface AppState {
   // Position
   totalSOLBoughtLamports: number;
@@ -26,9 +37,11 @@ export interface AppState {
   lastDCADate: string | null;
   dcaEnabled: boolean;
   dcaHistory: DCAEntry[];
+  pendingDCA: PendingDCA | null;
 
   // Sell orders
   sellOrders: SellOrder[];
+  lastOrdersPlacedAt: number; // epoch ms — guards on-chain sync against API lag
 
   // Settings
   baseAmountUSD: number;
