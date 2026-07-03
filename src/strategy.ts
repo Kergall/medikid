@@ -89,10 +89,11 @@ export function buildAdaptiveSellOrderSpecs(
   totalPositionLamports: number,
   refPriceUSD: number,
   minUsdPerOrder = 5.5,
+  levelsPcts?: number[], // e.g. [10, 20, 40] when the +60% tranche is trailed
 ): Array<{ solLamports: number; targetPriceUSD: number; targetPct: number }> {
   if (totalPositionLamports <= 0 || refPriceUSD <= 0) return [];
 
-  const levels = SELL_LEVELS.map(l => l.pct); // [10, 20, 40, 60]
+  const levels = levelsPcts ?? SELL_LEVELS.map(l => l.pct); // [10, 20, 40, 60]
   const solTotal = totalPositionLamports / LAMPORTS_PER_SOL;
   const lowestTargetPrice = refPriceUSD * (1 + levels[0] / 100);
 

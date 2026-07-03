@@ -38,6 +38,29 @@ export async function getSwapQuote(
   return { raw, outAmountLamports, priceUSD };
 }
 
+// Market-sell quote (SOL → USDC), used by the app-side trailing stop.
+// outAmountLamports carries the USDC micro amount received.
+export async function getSellQuote(
+  solLamports: number,
+  slippageBps = 100,
+): Promise<SwapQuote> {
+  const url = new URL(`${QUOTE_API}/quote`, location.href);
+  url.searchParams.set('inputMint', SOL_MINT);
+  url.searchParams.set('outputMint', USDC_MINT);
+  url.searchParams.set('amount', String(Math.floor(solLamports)));
+  url.searchParams.set('slippageBps', String(slippageBps));
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Quote API ${res.status} — ${detail.slice(0, 200)}`);
+  }
+  const raw = await res.json();
+  const outUsdcMicro = Number(raw.outAmount);
+  const priceUSD = (outUsdcMicro / USDC_DECIMALS) / (solLamports / LAMPORTS_PER_SOL);
+  return { raw, outAmountLamports: outUsdcMicro, priceUSD };
+}
+
 export async function buildSwapTransaction(
   quote: SwapQuote,
   walletPubkey: string,
