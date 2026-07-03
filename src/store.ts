@@ -12,8 +12,6 @@ const DEFAULT_STATE: AppState = {
   pendingDCA: null,
   sellOrders: [],
   lastOrdersPlacedAt: 0,
-  trailingEnabled: true,
-  trailingStop: null,
   baseAmountUSD: 10,
   rpcEndpoint: '', // empty = use the proxy's built-in public RPC pool
   walletMode: 'none',

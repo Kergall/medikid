@@ -27,18 +27,6 @@ export interface PendingDCA {
   sentAt: number; // epoch ms
 }
 
-// App-side trailing stop replacing the +60% tranche. All thresholds are
-// relative to refPriceUSD (the average DCA price at initialisation):
-// arms once peak ≥ ref×1.40, then stop = peak − ref×0.20 (floor ref×1.20).
-// Only runs while the app is open — Jupiter has no on-chain stop orders.
-export interface TrailingStop {
-  solLamports: number;
-  refPriceUSD: number;
-  peakPriceUSD: number;
-  locked: boolean;    // armed once → daily DCA no longer re-initialises it
-  createdAt: number;
-}
-
 export interface AppState {
   // Position
   totalSOLBoughtLamports: number;
@@ -54,8 +42,6 @@ export interface AppState {
   // Sell orders
   sellOrders: SellOrder[];
   lastOrdersPlacedAt: number; // epoch ms — guards on-chain sync against API lag
-  trailingEnabled: boolean;
-  trailingStop: TrailingStop | null;
 
   // Settings
   baseAmountUSD: number;

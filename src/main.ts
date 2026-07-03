@@ -1,5 +1,5 @@
 import './style.css';
-import type { AppState, DCAEntry, TrailingStop } from './types';
+import type { AppState, DCAEntry } from './types';
 import { loadState, saveState, resetState, isDCADoneToday, todayISO } from './store';
 import { fetchPriceData } from './price';
 import {
@@ -13,7 +13,6 @@ import {
 } from './strategy';
 import {
   getSwapQuote,
-  getSellQuote,
   buildSwapTransaction,
   createSellOrder,
   createCancelOrders,
@@ -206,29 +205,6 @@ function renderTabDashboard(): string {
       }
     </div>
 
-    ${state.trailingEnabled && state.trailingStop ? (() => {
-      const t = state.trailingStop!;
-      const armed = t.peakPriceUSD >= t.refPriceUSD * 1.4;
-      const stop = t.peakPriceUSD - t.refPriceUSD * 0.2;
-      return html`
-    <!-- Trailing stop (dernière tranche) -->
-    <div class="card">
-      <div class="card-label-row">
-        <span class="card-label">TRAILING STOP (dernière tranche)</span>
-        <span class="badge ${armed ? 'badge-green' : 'badge-yellow'}">${armed ? '🎯 armé' : 'en veille'}</span>
-      </div>
-      <p class="hint" style="margin-bottom:6px">
-        ${fmtSOL(t.solLamports)} réservés • réf. ${fmtUSD(t.refPriceUSD)} • pic ${fmtUSD(t.peakPriceUSD)}
-      </p>
-      <p class="hint" style="margin-bottom:6px">
-        ${armed
-          ? `Vente si le cours retombe à <strong>${fmtUSD(stop)}</strong> — le stop suit le pic, plancher ${fmtUSD(t.refPriceUSD * 1.2)} (+20%).`
-          : `S'arme quand le cours atteint <strong>${fmtUSD(t.refPriceUSD * 1.4)}</strong> (+40%). En dessous, la tranche est conservée sans ordre.`}
-      </p>
-      <p class="hint-small">⚠️ Surveillé uniquement quand l'app est ouverte. Les paliers +10/+20/+40% restent on-chain 24h/24.</p>
-    </div>`;
-    })() : ''}
-
     <!-- Historique complet -->
     <div class="card">
       <div class="card-label-row">
@@ -329,15 +305,6 @@ function renderTabSettings(): string {
         Vide par défaut (RPC publics gratuits). Pour une fiabilité maximale,
         colle une URL Helius gratuite (helius.dev → crée un compte → copie ton
         « RPC URL »). Ça garantit que tes achats passent même en période chargée.
-      </p>
-      <div class="setting-row" style="margin-top:12px">
-        <label><strong>Trailing stop</strong> sur la dernière tranche (25%)</label>
-        <input type="checkbox" id="chkTrailing" ${state.trailingEnabled ? 'checked' : ''} />
-      </div>
-      <p class="hint-small">
-        Remplace l'ordre +60% : s'arme à +40% du prix moyen puis vend si le cours
-        retombe de 20 points depuis son pic (plancher +20%). Actif uniquement
-        quand l'app est ouverte — les paliers +10/+20/+40% restent on-chain.
       </p>
       <button class="btn btn-secondary" id="btnSaveSettings">Enregistrer</button>
     </div>
@@ -530,7 +497,6 @@ function bindEvents(): void {
   on('btnDCA',     'click', () => { if (!isLoading) void handleDCA(); });
   on('btnRefresh', 'click', () => void (async () => {
     await refreshPrice();
-    await checkTrailingStop();
     await syncOrdersFromChain();
     await loadBalances();
     render();
@@ -540,14 +506,6 @@ function bindEvents(): void {
     const rpc  = (document.getElementById('inputRPC') as HTMLInputElement).value.trim();
     if (!isNaN(base) && base > 0) state.baseAmountUSD = base;
     state.rpcEndpoint = rpc; // empty = use the proxy's public RPC pool
-    const chkTrailing = document.getElementById('chkTrailing') as HTMLInputElement | null;
-    if (chkTrailing) {
-      const on = chkTrailing.checked;
-      if (!on && state.trailingStop) {
-        state.trailingStop = null; // tranche released — next DCA replaces the 4 on-chain orders
-      }
-      state.trailingEnabled = on;
-    }
     saveState(state);
     render();
   });
@@ -610,29 +568,8 @@ async function handleProtectPosition(): Promise<void> {
     }
 
     // Targets based on the CURRENT market price → always above market (safe).
-    // Reserve the trailing tranche (25%) unless an armed one already exists.
-    let ladderLamports = positionLamports;
-    if (state.trailingEnabled) {
-      if (state.trailingStop?.locked) {
-        ladderLamports = Math.max(0, positionLamports - state.trailingStop.solLamports);
-      } else {
-        const trancheLamports = Math.floor(positionLamports * 0.25);
-        state.trailingStop = {
-          solLamports: trancheLamports,
-          refPriceUSD: marketPrice,
-          peakPriceUSD: marketPrice,
-          locked: false,
-          createdAt: Date.now(),
-        };
-        ladderLamports = positionLamports - trancheLamports;
-      }
-    }
-
-    const specs = buildAdaptiveSellOrderSpecs(
-      ladderLamports, marketPrice, undefined,
-      state.trailingEnabled ? [10, 20, 40] : undefined,
-    );
-    if (specs.length === 0 && !(state.trailingEnabled && state.trailingStop)) {
+    const specs = buildAdaptiveSellOrderSpecs(positionLamports, marketPrice);
+    if (specs.length === 0) {
       alert(
         'Position trop petite pour placer un ordre : Jupiter exige au moins ' +
         '5 USD par ordre. Accumule davantage de SOL puis réessaie.',
@@ -736,7 +673,6 @@ async function handleCancelAllOrders(): Promise<void> {
     state.sellOrders = state.sellOrders.map(o =>
       o.status === 'active' ? { ...o, status: 'cancelled' as const } : o,
     );
-    state.trailingStop = null; // the trailed tranche is released too
     saveState(state);
     lastFetchedOrderKeys = [];
     alert(
@@ -963,77 +899,6 @@ async function loadBalances(): Promise<void> {
   if (usdc !== null) walletUsdcMicro = usdc;
 }
 
-// ─── Trailing stop (app-side, dernière tranche) ──────────────────────────────
-// Jupiter has no on-chain stop orders, so this runs while the app is open:
-// track the peak, arm at ref×1.40, sell at market once price falls to
-// peak − ref×0.20 (which is always ≥ the ref×1.20 floor once armed).
-
-const TRAIL_ARM_RATIO = 1.4;    // arms at +40% of avg DCA price
-const TRAIL_DELTA_RATIO = 0.2;  // stop follows peak − 20 pts of avg DCA price
-
-async function checkTrailingStop(): Promise<void> {
-  const t = state.trailingStop;
-  if (!t || !state.trailingEnabled || !priceData || isLoading) return;
-  const cur = priceData.currentUSD;
-  if (!(cur > 0)) return;
-
-  let changed = false;
-  if (cur > t.peakPriceUSD) { t.peakPriceUSD = cur; changed = true; }
-  if (!t.locked && t.peakPriceUSD >= t.refPriceUSD * TRAIL_ARM_RATIO) {
-    t.locked = true; // armed once — daily DCA will no longer re-initialise it
-    changed = true;
-  }
-  if (changed) saveState(state);
-
-  const armed = t.peakPriceUSD >= t.refPriceUSD * TRAIL_ARM_RATIO;
-  const stop = t.peakPriceUSD - t.refPriceUSD * TRAIL_DELTA_RATIO;
-  if (armed && cur <= stop) {
-    await executeTrailingSell(t, cur);
-  }
-}
-
-async function executeTrailingSell(t: TrailingStop, curPrice: number): Promise<void> {
-  isLoading = true;
-  render();
-  try {
-    const keypair = await loadKeypairForExecution();
-    if (!keypair) return;
-    const pubkey = keypair.publicKey.toBase58();
-
-    const quote = await getSellQuote(t.solLamports);
-    const tx = await buildSwapTransaction(quote, pubkey);
-    await signAndSendLocal(tx, keypair, state.rpcEndpoint);
-
-    const gainPct = ((curPrice / t.refPriceUSD) - 1) * 100;
-    state.sellOrders = [...state.sellOrders, {
-      accountPubkey: '', // pseudo-order: executed by the trailing stop, not on-chain
-      solLamports: t.solLamports,
-      targetPriceUSD: curPrice,
-      targetPct: Math.round(gainPct),
-      status: 'filled' as const,
-    }];
-    state.trailingStop = null;
-    saveState(state);
-    void loadBalances().then(render);
-
-    alert(
-      `🎯 Trailing stop exécuté !\n` +
-      `${fmtSOL(t.solLamports)} vendus à ~${fmtUSD(curPrice)} ` +
-      `(+${fmt(gainPct, 1)}% vs prix moyen ${fmtUSD(t.refPriceUSD)}).\n` +
-      `Les USDC sont dans le wallet.`,
-    );
-  } catch (err) {
-    console.error('Vente trailing échouée:', err);
-    alert(
-      `⚠️ Vente trailing échouée : ${(err as Error).message}\n` +
-      `Le stop reste armé — nouvelle tentative au prochain rafraîchissement.`,
-    );
-  } finally {
-    isLoading = false;
-    render();
-  }
-}
-
 async function handleDCA(): Promise<void> {
   if (!priceData) { await refreshPrice(); }
   if (!priceData) { alert('Prix non disponible, réessaie.'); return; }
@@ -1125,35 +990,9 @@ async function handleDCA(): Promise<void> {
     // 6. Place new sell orders (always ABOVE market — hard guard in
     //    createSellOrder refuses any target at/below market price).
     //    Only orders that ACTUALLY execute on-chain are recorded as active.
-    const marketPrice = priceData?.currentUSD ?? 0;
-
-    // Trailing tranche (replaces the +60% order): 25% of the position, tracked
-    // app-side. Re-initialised on each DCA until it arms at ref×1.40 — once
-    // locked, it is left untouched so the ≥ +20% sale stays guaranteed.
-    let ladderLamports = state.totalSOLBoughtLamports;
-    if (state.trailingEnabled && marketPrice > 0) {
-      if (state.trailingStop?.locked) {
-        ladderLamports = Math.max(0, ladderLamports - state.trailingStop.solLamports);
-      } else {
-        const trancheLamports = Math.floor(state.totalSOLBoughtLamports * 0.25);
-        state.trailingStop = {
-          solLamports: trancheLamports,
-          refPriceUSD: state.averageBuyPriceUSD,
-          peakPriceUSD: marketPrice,
-          locked: false,
-          createdAt: Date.now(),
-        };
-        ladderLamports = state.totalSOLBoughtLamports - trancheLamports;
-      }
-    }
-
-    const specs = buildAdaptiveSellOrderSpecs(
-      ladderLamports,
-      state.averageBuyPriceUSD,
-      undefined,
-      state.trailingEnabled ? [10, 20, 40] : undefined,
-    );
+    const specs = buildAdaptiveSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
     const placedAccounts: string[] = [];
+    const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
       try {
         const triggerTx = await createSellOrder(spec, pubkey, marketPrice);
@@ -1263,7 +1102,6 @@ async function boot(): Promise<void> {
     );
   }
   await syncOrdersFromChain();
-  await checkTrailingStop();
   void loadBalances().then(render);
   render();
 
@@ -1279,10 +1117,9 @@ async function boot(): Promise<void> {
     await handleDCA();
   }
 
-  // Periodic refresh: price, trailing stop, order statuses, balances
+  // Periodic refresh: price, order statuses, balances
   setInterval(async () => {
     await refreshPrice();
-    await checkTrailingStop();
     await syncOrdersFromChain();
     await loadBalances();
     render();
