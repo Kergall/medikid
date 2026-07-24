@@ -865,9 +865,10 @@ async function resolvePendingDCA(): Promise<'recorded' | 'cleared' | 'wait' | 'n
 }
 
 // ─── On-chain order sync ─────────────────────────────────────────────────────
-// A locally-"active" order that no longer appears in Jupiter's open orders has
-// been executed (we mark our own cancellations separately) → mark it filled so
-// the dashboard reflects reality.
+// A locally-"active" order that no longer appears in Jupiter's open orders is
+// no longer live. We can't tell a fill from an on-chain cancellation just from
+// its disappearance, so mark it "closed" (cancelled) rather than fabricate a
+// sale. A real fill is still visible as USDC arriving in the wallet balance.
 
 async function syncOrdersFromChain(): Promise<void> {
   if (!walletAddress) return;
@@ -883,7 +884,7 @@ async function syncOrdersFromChain(): Promise<void> {
     state.sellOrders = state.sellOrders.map(o => {
       if (o.status === 'active' && o.accountPubkey && !openKeys.has(o.accountPubkey)) {
         changed = true;
-        return { ...o, status: 'filled' as const };
+        return { ...o, status: 'cancelled' as const };
       }
       return o;
     });
