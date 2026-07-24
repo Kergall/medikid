@@ -27,6 +27,23 @@ export function calcDCAAmountUSD(change30dPct: number, baseAmountUSD: number): n
 }
 
 /**
+ * Weighted-average DCA cost (USDC/SOL) derived from the actual buy history.
+ * This is the single source of truth for sell thresholds: unlike the stored
+ * averageBuyPriceUSD it can never be corrupted by manual actions, and selling
+ * never changes per-unit cost, so it stays correct after fills too.
+ */
+export function averageCostFromHistory(history: DCAEntry[]): number {
+  let solLamports = 0;
+  let usdcMicro = 0;
+  for (const h of history) {
+    solLamports += h.solBoughtLamports;
+    usdcMicro += h.amountUSD * USDC_DECIMALS;
+  }
+  if (solLamports <= 0) return 0;
+  return (usdcMicro / USDC_DECIMALS) / (solLamports / LAMPORTS_PER_SOL);
+}
+
+/**
  * Recalculates the average buy price after a new purchase.
  */
 export function updateAverageCost(

@@ -5,6 +5,7 @@ import { fetchPriceData } from './price';
 import {
   calcDCAAmountUSD,
   updateAverageCost,
+  averageCostFromHistory,
   buildAdaptiveSellOrderSpecs,
   recordDCAEntry,
   replaceSellOrders,
@@ -83,7 +84,8 @@ function getCalcs() {
 function renderTabDashboard(): string {
   const { posSOL, posValue, invested, pnl, pnlPct } = getCalcs();
   const cur = priceData?.currentUSD ?? 0;
-  const avg = state.averageBuyPriceUSD;
+  // True DCA cost basis from history (immune to manual-action corruption).
+  const avg = averageCostFromHistory(state.dcaHistory) || state.averageBuyPriceUSD;
   const activeOrders = state.sellOrders.filter(o => o.status === 'active');
   const filledOrders = state.sellOrders.filter(o => o.status === 'filled');
 
@@ -538,10 +540,15 @@ async function handleProtectPosition(): Promise<void> {
     return;
   }
   const marketPrice = priceData.currentUSD;
+  // Thresholds use the true DCA cost basis (history). Only when there is no
+  // buy history at all do we fall back to the current market price.
+  const refPrice = averageCostFromHistory(state.dcaHistory) || marketPrice;
+  const usingHistory = refPrice !== marketPrice;
 
   if (!confirm(
-    `Placer 4 ordres de vente au-dessus du cours actuel (${fmtUSD(marketPrice)}) ` +
-    `sur ton SOL libre ? Une réserve de ~0,04 SOL est gardée pour les frais.`,
+    `Placer les ordres de vente sur ton SOL libre, aux paliers +10/+20/+40/+60% ` +
+    `${usingHistory ? `de ton prix moyen DCA (${fmtUSD(refPrice)})` : `du cours actuel (${fmtUSD(marketPrice)})`} ? ` +
+    `Une réserve de ~0,04 SOL est gardée pour les frais.`,
   )) return;
 
   isLoading = true;
@@ -567,8 +574,8 @@ async function handleProtectPosition(): Promise<void> {
       for (const ct of cancelTxs) await executeTrigger(ct, keypair).catch(console.warn);
     }
 
-    // Targets based on the CURRENT market price → always above market (safe).
-    const specs = buildAdaptiveSellOrderSpecs(positionLamports, marketPrice);
+    // Targets based on the true DCA cost basis (or market if no history).
+    const specs = buildAdaptiveSellOrderSpecs(positionLamports, refPrice);
     if (specs.length === 0) {
       alert(
         'Position trop petite pour placer un ordre : Jupiter exige au moins ' +
@@ -593,18 +600,15 @@ async function handleProtectPosition(): Promise<void> {
     const okSpecs = specs.filter((_, i) => placedAccounts[i]);
     const okAccounts = placedAccounts.filter(a => a);
 
-    // Sync the dashboard to reality (reference = current market price).
-    state.totalSOLBoughtLamports = positionLamports;
-    state.averageBuyPriceUSD = marketPrice;
-    state.totalUSDCSpentMicro = Math.round(
-      (positionLamports / LAMPORTS_PER_SOL) * marketPrice * USDC_DECIMALS,
-    );
+    // Record the placed orders only. The DCA history remains the single source
+    // of truth for the cost basis — never overwrite it here.
     state.sellOrders = replaceSellOrders(state.sellOrders, okSpecs, okAccounts);
     if (okAccounts.length > 0) state.lastOrdersPlacedAt = Date.now();
     saveState(state);
 
     alert(
-      `✅ ${okAccounts.length}/${specs.length} ordres de vente placés au-dessus de ${fmtUSD(marketPrice)}.` +
+      `✅ ${okAccounts.length}/${specs.length} ordres de vente placés ` +
+      `(paliers du prix moyen ${fmtUSD(refPrice)}).` +
       (okAccounts.length < specs.length && errors.length
         ? `\n⚠️ Échec. Détail : ${errors[0]}`
         : ''),
@@ -989,8 +993,11 @@ async function handleDCA(): Promise<void> {
 
     // 6. Place new sell orders (always ABOVE market — hard guard in
     //    createSellOrder refuses any target at/below market price).
+    //    Thresholds come from the true DCA cost basis (buy history), never a
+    //    stored value that manual actions could have corrupted.
     //    Only orders that ACTUALLY execute on-chain are recorded as active.
-    const specs = buildAdaptiveSellOrderSpecs(state.totalSOLBoughtLamports, state.averageBuyPriceUSD);
+    const avgCost = averageCostFromHistory(state.dcaHistory) || state.averageBuyPriceUSD;
+    const specs = buildAdaptiveSellOrderSpecs(state.totalSOLBoughtLamports, avgCost);
     const placedAccounts: string[] = [];
     const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
@@ -1015,7 +1022,7 @@ async function handleDCA(): Promise<void> {
     const placedCount = okAccounts.length;
     alert(
       `✅ DCA exécuté !\n${fmtUSD(dcaAmountUSD)} → ${fmtSOL(quote.outAmountLamports)}\n` +
-      `Prix moyen : ${fmtUSD(state.averageBuyPriceUSD)}\n` +
+      `Prix moyen : ${fmtUSD(avgCost)}\n` +
       `Ordres de vente placés : ${placedCount}/${specs.length}` +
       (placedCount < specs.length ? '\n⚠️ Certains ordres n\'ont pas été placés — réessaie ou vérifie "Voir mes ordres ouverts".' : ''),
     );
