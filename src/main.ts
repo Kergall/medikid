@@ -996,9 +996,18 @@ async function handleDCA(): Promise<void> {
     //    createSellOrder refuses any target at/below market price).
     //    Thresholds come from the true DCA cost basis (buy history), never a
     //    stored value that manual actions could have corrupted.
+    //    Quantity is sized against the ACTUAL free SOL minus a reserve for the
+    //    orders' own rent + fees, so the last (+60%) order can always be funded
+    //    — never against the tracked total, which may exceed the wallet balance.
     //    Only orders that ACTUALLY execute on-chain are recorded as active.
     const avgCost = averageCostFromHistory(state.dcaHistory) || state.averageBuyPriceUSD;
-    const specs = buildAdaptiveSellOrderSpecs(state.totalSOLBoughtLamports, avgCost);
+    const freeSol = await getWalletSolLamports(pubkey, state.rpcEndpoint)
+      .catch(() => state.totalSOLBoughtLamports);
+    const orderReserve = Math.floor(0.03 * LAMPORTS_PER_SOL); // rent + fees for the orders
+    const sellableLamports = Math.max(
+      0, Math.min(state.totalSOLBoughtLamports, freeSol - orderReserve),
+    );
+    const specs = buildAdaptiveSellOrderSpecs(sellableLamports, avgCost);
     const placedAccounts: string[] = [];
     const marketPrice = priceData?.currentUSD ?? 0;
     for (const spec of specs) {
