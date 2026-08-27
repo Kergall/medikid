@@ -1,4 +1,4 @@
-import type { AppState, DCAEntry, SellOrder } from './types';
+import type { AppState, DCAEntry, SellOrder, FilledSell } from './types';
 
 export const LAMPORTS_PER_SOL = 1_000_000_000;
 export const USDC_DECIMALS = 1_000_000; // 1 USDC = 1_000_000 micro-USDC
@@ -41,6 +41,50 @@ export function averageCostFromHistory(history: DCAEntry[]): number {
   }
   if (solLamports <= 0) return 0;
   return (usdcMicro / USDC_DECIMALS) / (solLamports / LAMPORTS_PER_SOL);
+}
+
+/**
+ * Average cost (USDC/SOL) of the SOL STILL HELD, using proper average-cost
+ * accounting: buys blend the average; a sell removes units at the current
+ * average (leaving per-unit cost unchanged) so later buys blend against the
+ * remaining quantity. Correct after partial sells — unlike averaging all buys.
+ * Falls back to a buys-only average when there are no recorded sells.
+ */
+export function computeAvgCost(
+  history: DCAEntry[],
+  sells: FilledSell[] = [],
+): number {
+  type Ev = { t: number; sol: number; usdc: number; buy: boolean };
+  const evs: Ev[] = [];
+  for (const b of history) {
+    evs.push({
+      t: Date.parse(b.date) || 0,
+      sol: b.solBoughtLamports || 0,
+      usdc: Math.round((b.amountUSD || 0) * USDC_DECIMALS),
+      buy: true,
+    });
+  }
+  for (const s of sells) {
+    evs.push({ t: s.filledAt || 0, sol: s.solLamports || 0, usdc: 0, buy: false });
+  }
+  evs.sort((a, b) => a.t - b.t);
+
+  let heldLamports = 0;
+  let basisMicro = 0;
+  for (const e of evs) {
+    if (e.buy) {
+      basisMicro += e.usdc;
+      heldLamports += e.sol;
+    } else {
+      if (heldLamports <= 0) continue;
+      const perLamport = basisMicro / heldLamports;
+      const sold = Math.min(e.sol, heldLamports);
+      basisMicro -= sold * perLamport;
+      heldLamports -= sold;
+    }
+  }
+  if (heldLamports <= 0) return 0;
+  return (basisMicro / USDC_DECIMALS) / (heldLamports / LAMPORTS_PER_SOL);
 }
 
 /**

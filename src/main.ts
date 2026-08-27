@@ -5,7 +5,7 @@ import { fetchPriceData } from './price';
 import {
   calcDCAAmountUSD,
   updateAverageCost,
-  averageCostFromHistory,
+  computeAvgCost,
   buildAdaptiveSellOrderSpecs,
   recordDCAEntry,
   replaceSellOrders,
@@ -18,6 +18,7 @@ import {
   createSellOrder,
   createCancelOrders,
   fetchOpenOrders,
+  fetchFilledOrders,
 } from './jupiter';
 import { Keypair } from '@solana/web3.js';
 import {
@@ -67,7 +68,7 @@ function getCalcs() {
   const dcaAmountUSD = priceData
     ? calcDCAAmountUSD(priceData.change30dPct, state.baseAmountUSD)
     : state.baseAmountUSD;
-  const avgCost   = averageCostFromHistory(state.dcaHistory) || state.averageBuyPriceUSD;
+  const avgCost   = computeAvgCost(state.dcaHistory, state.sells) || state.averageBuyPriceUSD;
   // Real current holding = free wallet SOL + SOL still locked in active sell
   // orders. This automatically drops when an order fills (sold SOL leaves both),
   // unlike the gross "total bought". Falls back to the tracked total until the
@@ -101,7 +102,7 @@ function renderTabDashboard(): string {
   const { posSOL, posValue, invested, pnl, pnlPct } = getCalcs();
   const cur = priceData?.currentUSD ?? 0;
   // True DCA cost basis from history (immune to manual-action corruption).
-  const avg = averageCostFromHistory(state.dcaHistory) || state.averageBuyPriceUSD;
+  const avg = computeAvgCost(state.dcaHistory, state.sells) || state.averageBuyPriceUSD;
   const activeOrders = state.sellOrders.filter(o => o.status === 'active');
   const filledOrders = state.sellOrders.filter(o => o.status === 'filled');
 
@@ -535,6 +536,7 @@ function bindEvents(): void {
   on('btnDCA',     'click', () => { if (!isLoading) void handleDCA(); });
   on('btnRefresh', 'click', () => void (async () => {
     await refreshPrice();
+    await syncFills();
     await syncOrdersFromChain();
     await loadBalances();
     render();
@@ -578,7 +580,7 @@ async function handleProtectPosition(): Promise<void> {
   const marketPrice = priceData.currentUSD;
   // Thresholds use the true DCA cost basis (history). Only when there is no
   // buy history at all do we fall back to the current market price.
-  const refPrice = averageCostFromHistory(state.dcaHistory) || marketPrice;
+  const refPrice = computeAvgCost(state.dcaHistory, state.sells) || marketPrice;
   const usingHistory = refPrice !== marketPrice;
 
   if (!confirm(
@@ -900,11 +902,46 @@ async function resolvePendingDCA(): Promise<'recorded' | 'cleared' | 'wait' | 'n
   return 'wait';
 }
 
+// ─── Executed-sell sync (for correct average cost) ───────────────────────────
+// Confirm which of our sell orders actually executed, via Jupiter's order
+// history. A confirmed fill is recorded (with the SOL amount from our own
+// record) so the average cost of the remaining position stays correct.
+async function syncFills(): Promise<void> {
+  if (!walletAddress) return;
+  try {
+    const filled = await fetchFilledOrders(walletAddress);
+    if (filled.length === 0) return;
+    const known = new Set((state.sells || []).map(s => s.orderKey));
+    const filledSet = new Set(filled.map(f => f.orderKey));
+    let changed = false;
+    for (const f of filled) {
+      if (known.has(f.orderKey)) continue;
+      const local = state.sellOrders.find(o => o.accountPubkey === f.orderKey);
+      if (!local) continue; // not one of ours → SOL amount unknown, skip
+      state.sells = [...(state.sells || []), {
+        orderKey: f.orderKey,
+        solLamports: local.solLamports,
+        filledAt: f.filledAt,
+      }];
+      changed = true;
+    }
+    if (changed) {
+      // Reflect the confirmed fills in the local order list + cost basis.
+      state.sellOrders = state.sellOrders.map(o =>
+        filledSet.has(o.accountPubkey) && o.status !== 'filled'
+          ? { ...o, status: 'filled' as const }
+          : o,
+      );
+      state.averageBuyPriceUSD = computeAvgCost(state.dcaHistory, state.sells);
+      saveState(state);
+    }
+  } catch { /* best effort — retry next cycle */ }
+}
+
 // ─── On-chain order sync ─────────────────────────────────────────────────────
-// A locally-"active" order that no longer appears in Jupiter's open orders is
-// no longer live. We can't tell a fill from an on-chain cancellation just from
-// its disappearance, so mark it "closed" (cancelled) rather than fabricate a
-// sale. A real fill is still visible as USDC arriving in the wallet balance.
+// A locally-"active" order that no longer appears in Jupiter's open orders and
+// was NOT confirmed filled by syncFills is treated as closed (cancelled) rather
+// than fabricating a sale.
 
 async function syncOrdersFromChain(): Promise<void> {
   if (!walletAddress) return;
@@ -1036,7 +1073,7 @@ async function handleDCA(): Promise<void> {
     //    orders' own rent + fees, so the last (+60%) order can always be funded
     //    — never against the tracked total, which may exceed the wallet balance.
     //    Only orders that ACTUALLY execute on-chain are recorded as active.
-    const avgCost = averageCostFromHistory(state.dcaHistory) || state.averageBuyPriceUSD;
+    const avgCost = computeAvgCost(state.dcaHistory, state.sells) || state.averageBuyPriceUSD;
     const freeSol = await getWalletSolLamports(pubkey, state.rpcEndpoint)
       .catch(() => state.totalSOLBoughtLamports);
     const orderReserve = Math.floor(0.03 * LAMPORTS_PER_SOL); // rent + fees for the orders
@@ -1154,6 +1191,7 @@ async function boot(): Promise<void> {
       'Il a été enregistré dans l\'historique (double achat évité).',
     );
   }
+  await syncFills();
   await syncOrdersFromChain();
   void loadBalances().then(render);
   render();
@@ -1173,6 +1211,7 @@ async function boot(): Promise<void> {
   // Periodic refresh: price, order statuses, balances
   setInterval(async () => {
     await refreshPrice();
+    await syncFills();
     await syncOrdersFromChain();
     await loadBalances();
     render();

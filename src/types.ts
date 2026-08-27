@@ -14,6 +14,14 @@ export interface SellOrder {
   status: 'active' | 'filled' | 'cancelled';
 }
 
+// A sell order confirmed executed on-chain — recorded so the average cost of
+// the remaining position stays correct after partial sells.
+export interface FilledSell {
+  orderKey: string;
+  solLamports: number;
+  filledAt: number; // epoch ms
+}
+
 export type WalletMode = 'none' | 'phantom' | 'local';
 
 // A swap that was sent on-chain but whose confirmation failed or timed out.
@@ -42,6 +50,7 @@ export interface AppState {
   // Sell orders
   sellOrders: SellOrder[];
   lastOrdersPlacedAt: number; // epoch ms — guards on-chain sync against API lag
+  sells: FilledSell[];        // confirmed executed sells (for average-cost accounting)
 
   // Settings
   baseAmountUSD: number;

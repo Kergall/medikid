@@ -177,6 +177,31 @@ export async function createCancelOrders(
   return out;
 }
 
+// Confirmed-executed sell orders, from Jupiter's order history. Returns only
+// the order keys + fill time; the SOL amount is taken from our own record to
+// avoid ambiguity in the API's amount encoding.
+export async function fetchFilledOrders(
+  walletPubkey: string,
+): Promise<Array<{ orderKey: string; filledAt: number }>> {
+  const res = await fetch(`/api/order-history?wallet=${walletPubkey}`);
+  if (!res.ok) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = await res.json() as { orders?: any[] };
+  const orders = data.orders ?? [];
+  return orders
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((o: any) => {
+      const st = String(o.status ?? '').toLowerCase();
+      return st.includes('complet') || st.includes('fill'); // Completed / Filled
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((o: any) => ({
+      orderKey: o.orderKey ?? o.publicKey ?? o.order ?? '',
+      filledAt: Date.parse(o.updatedAt ?? o.filledAt ?? o.createdAt ?? '') || Date.now(),
+    }))
+    .filter((o: { orderKey: string }) => o.orderKey);
+}
+
 export interface OpenOrder {
   orderKey: string;
   inputMint: string;

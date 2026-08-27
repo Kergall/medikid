@@ -1,12 +1,12 @@
 import type { AppState } from './types';
+import { computeAvgCost } from './strategy';
 
 const STORAGE_KEY = 'sol_dca_bot_v1';
-const LAMPORTS_PER_SOL = 1_000_000_000;
 const USDC_DECIMALS = 1_000_000;
 
-// Rebuild the cost basis from the immutable buy history (single source of
-// truth). Manual actions and past bugs corrupted the stored totals; the
-// history is the real record of every buy, so we always trust it.
+// Rebuild the cost basis from the immutable buy history + recorded sells
+// (single source of truth). Manual actions and past bugs corrupted the stored
+// totals; buys/sells are the real record, so we always trust them.
 function healCostBasisFromHistory(s: AppState): void {
   if (!Array.isArray(s.dcaHistory) || s.dcaHistory.length === 0) return;
   let solLamports = 0;
@@ -18,7 +18,8 @@ function healCostBasisFromHistory(s: AppState): void {
   if (solLamports <= 0) return;
   s.totalSOLBoughtLamports = solLamports;
   s.totalUSDCSpentMicro = usdcMicro;
-  s.averageBuyPriceUSD = (usdcMicro / USDC_DECIMALS) / (solLamports / LAMPORTS_PER_SOL);
+  // Average cost of the SOL still held (accounts for executed sells).
+  s.averageBuyPriceUSD = computeAvgCost(s.dcaHistory, s.sells || []);
 }
 
 const DEFAULT_STATE: AppState = {
@@ -31,6 +32,7 @@ const DEFAULT_STATE: AppState = {
   pendingDCA: null,
   sellOrders: [],
   lastOrdersPlacedAt: 0,
+  sells: [],
   baseAmountUSD: 10,
   rpcEndpoint: '', // empty = use the proxy's built-in public RPC pool
   walletMode: 'none',
