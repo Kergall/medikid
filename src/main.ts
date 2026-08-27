@@ -81,7 +81,9 @@ function getCalcs() {
   const posSOL    = heldLamports / LAMPORTS_PER_SOL;
   const cur       = priceData?.currentUSD ?? 0;
   const posValue  = posSOL * (cur || avgCost);
-  const invested  = state.totalUSDCSpentMicro / USDC_DECIMALS;
+  // Cost basis of the SOL still held (not the gross total ever invested), so
+  // that valeur actuelle − investi = the latent P&L below.
+  const invested  = posSOL * avgCost;
   // Latent (unrealised) P&L on the SOL still held, vs its average cost.
   // Realised proceeds from past sales live in the wallet's USDC balance.
   const pnl       = posSOL > 0 && cur > 0 ? posSOL * (cur - avgCost) : 0;
