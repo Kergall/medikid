@@ -107,6 +107,19 @@ html, body {
   letter-spacing: -0.02em;
   margin-bottom: 6px;
 }
+.total-card {
+  background: linear-gradient(135deg, rgba(153,69,255,0.14), rgba(20,241,149,0.10));
+  border: 1px solid rgba(153,69,255,0.35);
+}
+.total-break {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-dim, #9aa0b4);
+  margin-top: 2px;
+}
+.total-break strong { color: var(--text, #e8eaf2); }
 .price-hint {
   font-size: 13px;
   color: var(--text2);

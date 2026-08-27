@@ -88,10 +88,11 @@ function getCalcs() {
   // Realised proceeds from past sales live in the wallet's USDC balance.
   const pnl       = posSOL > 0 && cur > 0 ? posSOL * (cur - avgCost) : 0;
   const pnlPct    = avgCost > 0 && cur > 0 ? (cur / avgCost - 1) * 100 : 0;
+  const lockedSOL = lockedLamports / LAMPORTS_PER_SOL;
   const done      = isDCADoneToday(state);
   const paused    = dcaAmountUSD === 0;
   const autoOn    = state.walletMode === 'local' && state.autoExecute;
-  return { dcaAmountUSD, posSOL, posValue, invested, pnl, pnlPct, done, paused, autoOn };
+  return { dcaAmountUSD, posSOL, posValue, invested, pnl, pnlPct, lockedSOL, done, paused, autoOn };
 }
 
 // ─── Tab: Tableau de bord ────────────────────────────────────────────────────
@@ -134,6 +135,26 @@ function renderTabDashboard(): string {
         </div>
       </div>
     </div>
+
+    <!-- Valeur totale du portefeuille (USDC dispo + valeur du SOL) -->
+    ${(() => {
+      const c = getCalcs();
+      const usdcAvail = walletUsdcMicro !== null ? walletUsdcMicro / USDC_DECIMALS : null;
+      const solValue = c.posValue;                 // SOL détenu (libre + placé) × cours
+      const lockedValue = c.lockedSOL * cur;       // part placée dans les ordres Jupiter
+      const total = (usdcAvail ?? 0) + solValue;
+      const ready = usdcAvail !== null && cur > 0;
+      return html`
+    <div class="card total-card">
+      <div class="card-label">VALEUR TOTALE DU PORTEFEUILLE</div>
+      <div class="price-big">${ready ? fmtUSD(total) : '—'}</div>
+      ${ready ? html`
+        <div class="total-break">
+          <span>💵 Disponible : <strong>${fmtUSD(usdcAvail!)}</strong></span>
+          <span>◎ En SOL : <strong>${fmtUSD(solValue)}</strong>${c.lockedSOL > 0 ? ` (dont ${fmtUSD(lockedValue)} placés sur Jupiter)` : ''}</span>
+        </div>` : '<div class="hint-small">Appuie sur « Actualiser » pour charger les soldes du wallet.</div>'}
+    </div>`;
+    })()}
 
     <!-- Grille de stats -->
     <div class="stats-grid">
