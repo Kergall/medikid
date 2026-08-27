@@ -67,12 +67,25 @@ function getCalcs() {
   const dcaAmountUSD = priceData
     ? calcDCAAmountUSD(priceData.change30dPct, state.baseAmountUSD)
     : state.baseAmountUSD;
-  const posSOL    = state.totalSOLBoughtLamports / LAMPORTS_PER_SOL;
+  const avgCost   = averageCostFromHistory(state.dcaHistory) || state.averageBuyPriceUSD;
+  // Real current holding = free wallet SOL + SOL still locked in active sell
+  // orders. This automatically drops when an order fills (sold SOL leaves both),
+  // unlike the gross "total bought". Falls back to the tracked total until the
+  // live balance has loaded.
+  const lockedLamports = state.sellOrders
+    .filter(o => o.status === 'active')
+    .reduce((s, o) => s + o.solLamports, 0);
+  const heldLamports = walletSolLamports !== null
+    ? Math.max(0, walletSolLamports + lockedLamports)
+    : state.totalSOLBoughtLamports;
+  const posSOL    = heldLamports / LAMPORTS_PER_SOL;
   const cur       = priceData?.currentUSD ?? 0;
-  const posValue  = posSOL * (cur || state.averageBuyPriceUSD);
+  const posValue  = posSOL * (cur || avgCost);
   const invested  = state.totalUSDCSpentMicro / USDC_DECIMALS;
-  const pnl       = posSOL > 0 && cur > 0 ? posValue - invested : 0;
-  const pnlPct    = invested > 0 ? (pnl / invested) * 100 : 0;
+  // Latent (unrealised) P&L on the SOL still held, vs its average cost.
+  // Realised proceeds from past sales live in the wallet's USDC balance.
+  const pnl       = posSOL > 0 && cur > 0 ? posSOL * (cur - avgCost) : 0;
+  const pnlPct    = avgCost > 0 && cur > 0 ? (cur / avgCost - 1) * 100 : 0;
   const done      = isDCADoneToday(state);
   const paused    = dcaAmountUSD === 0;
   const autoOn    = state.walletMode === 'local' && state.autoExecute;
@@ -143,7 +156,7 @@ function renderTabDashboard(): string {
         </div>
       </div>
       <div class="stat-cell">
-        <div class="stat-label">SOL accumulé</div>
+        <div class="stat-label">SOL détenu</div>
         <div class="stat-value">${posSOL > 0 ? fmt(posSOL, 4) : '0'}</div>
       </div>
       <div class="stat-cell">
