@@ -1,18 +1,27 @@
-# Analyse technique SOL/USDC
+# Analyse technique SOL/USDC (methodologie ICT / smart money)
 
-Outil d'aide a la decision pour SOL/USDC : il recupere les bougies OHLC,
-en deduit la structure de marche, trace un retracement de Fibonacci, repere
-les order blocks, et propose eventuellement un ordre (entree, stop loss,
-take profit) avec un ratio rendement/risque. Le graphique est rendu en
-orientation portrait, fond sombre, gros caracteres, pour une lecture facile
-sur telephone.
+Outil d'aide a la decision pour SOL/USDC. Il recupere les bougies OHLC et
+applique une lecture « smart money » deterministe :
+
+- **Structure de marche : BOS et CHoCH**, pour dater continuations et
+  retournements.
+- **OTE (Optimal Trade Entry)** : zone de retracement 0.62-0.79, point
+  optimal a 0.705.
+- **Fair Value Gaps / imbalances** : desequilibres laisses par une impulsion.
+- **Zones de liquidite** : acheteuse au-dessus (BSL), vendeuse en dessous (SSL).
+- **Order blocks** : derniere bougie opposee avant une forte impulsion.
+- **MACD** et **EMA 20/50** : momentum et contexte de tendance.
+
+Il propose eventuellement un ordre (entree, stop loss, take profit) avec un
+ratio rendement/risque. Le graphique est rendu en portrait, fond sombre, gros
+caracteres, pour une lecture facile sur telephone.
 
 > Avertissement. Ceci est une aide heuristique et transparente, pas un signal
-> garanti. La methode « order blocks / Fibonacci » est discretionnaire : les
-> memes zones se tracent differemment selon l'analyste, et rien ne prouve
-> qu'elle procure un avantage statistique reproductible. Les niveaux proposes
-> sont a valider par votre propre jugement. Ne risquez que ce que vous pouvez
-> perdre.
+> garanti. La methodologie ICT (order blocks, FVG, OTE, BOS/CHoCH) est
+> discretionnaire : les memes zones se tracent differemment selon l'analyste,
+> et rien ne prouve qu'elle procure un avantage statistique reproductible.
+> Empiler des indicateurs n'ajoute pas de certitude. Les niveaux proposes sont
+> a valider par votre propre jugement. Ne risquez que ce que vous pouvez perdre.
 
 ## 1. Autoriser l'acces reseau (a faire une fois)
 
@@ -72,31 +81,41 @@ indisponibles ; la redondance couvre ce cas. Aucune cle API n'est requise.
 
 ## 4. Comment lire le graphique et le raisonnement
 
-- **Tendance** : deduite de deux moyennes mobiles exponentielles. EMA20 au
-  dessus de l'EMA50, prix au-dessus de l'EMA20 -> tendance haussiere ; la
-  configuration inverse -> baissiere ; sinon indecise. On ne prend une
-  position que dans le sens de la tendance.
-- **Fibonacci** : trace sur la derniere impulsion (du dernier creux au dernier
-  sommet, ou l'inverse). Le « golden pocket » (0.618-0.705), zone ombree en
-  jaune, est la zone de retracement ou les impulsions reprennent le plus
-  souvent.
-- **Order blocks** : la derniere bougie de couleur opposee avant une forte
-  impulsion. Un OB haussier (zone verte) marque une zone de demande ; un OB
-  baissier (zone rouge) une zone d'offre. On leur accorde du poids quand ils
-  coincident avec un niveau de Fibonacci (confluence).
-- **Proposition d'ordre** : generee uniquement si le prix se trouve sur une
-  zone de confluence nette (golden pocket et/ou order block), dans le sens de
-  la tendance, et si le ratio rendement/risque est au moins de 1,5. Le stop
-  est place juste au-dela de la zone (invalidation propre), l'objectif sur
-  l'extremite de l'impulsion. Sinon, l'outil indique explicitement qu'aucun
-  ordre n'est justifie et qu'il vaut mieux attendre.
+- **Tendance / biais** : la structure de marche prime, l'EMA20/50 confirme.
+  Si les deux divergent, l'outil le signale et invite a la prudence. On ne
+  prend position que dans le sens du biais.
+- **BOS (Break of Structure)** : cassure en cloture d'un sommet (ou creux) de
+  reference dans le sens de la tendance -> continuation. Marque en vert
+  (haussier) ou rouge (baissier).
+- **CHoCH (Change of Character)** : premiere cassure en sens contraire ->
+  signal precoce de retournement. C'est souvent le point de bascule du biais.
+- **OTE (Optimal Trade Entry)** : zone ombree en jaune, retracement 0.62-0.79
+  de la derniere impulsion. La ligne pointillee a 0.705 est le point d'entree
+  optimal recherche par la methodologie ICT.
+- **FVG / imbalance** : rectangles semi-transparents. Un desequilibre non
+  comble agit comme un aimant ; le marche tend a y revenir avant de repartir.
+  Les gaps negligeables (bruit de meche) sont filtres.
+- **Zones de liquidite (BSL / SSL)** : lignes pointillees bleues. BSL
+  au-dessus (stops des vendeurs, cible d'un long), SSL en dessous (stops des
+  acheteurs, cible d'un short). Les objectifs sont fixes sur la liquidite
+  opposee la plus proche.
+- **Order blocks** : derniere bougie opposee avant une forte impulsion. On
+  leur accorde du poids quand ils coincident avec l'OTE ou un FVG (confluence).
+- **MACD** : confirmation du momentum (histogramme et croisement).
+- **Proposition d'ordre** : generee uniquement en cas de confluence nette,
+  a savoir prix dans l'OTE + un FVG et/ou un order block du meme sens
+  chevauchant la zone + structure alignee, et si le ratio rendement/risque est
+  au moins de 1,5. Le stop est place juste au-dela de la zone (invalidation
+  propre), l'objectif sur la liquidite opposee. Sinon, l'outil indique
+  explicitement qu'aucun ordre n'est justifie et qu'il vaut mieux attendre.
 
 ## 5. Limites assumees
 
-- La detection des swings et des order blocks est algorithmique et simplifiee ;
-  elle ne remplace pas la lecture d'un graphique par un operateur experimente.
-- L'outil ne tient pas compte du contexte macro, des news, ni des unites de
-  temps superieures. Croisez toujours avec une analyse en 4h/1j avant d'agir
-  sur du 5m ou 1h.
+- La detection des pivots, de la structure, des FVG et des order blocks est
+  algorithmique et simplifiee ; elle ne remplace pas la lecture d'un operateur
+  experimente et peut differer d'un trace manuel.
+- L'outil analyse une seule unite de temps a la fois et ne tient pas compte du
+  contexte macro ni des news. Croisez toujours avec une analyse en 4h/1j avant
+  d'agir sur du 5m ou 1h.
 - Aucun passage d'ordre n'est automatise : l'outil ne fait qu'analyser et
   proposer. L'execution reste entierement entre vos mains.
