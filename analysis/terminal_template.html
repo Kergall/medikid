@@ -1,0 +1,671 @@
+<title>Terminal ICT SOL/USDC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* ------- Univers unique : terminal de trading sombre (choix delibere) ------- */
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel-2:#1b222c; --inset:#10151c;
+    --line:#232b36; --line-2:#2c3644;
+    --ink:#e8ecf1; --ink-2:#9aa6b4; --ink-3:#63707f;
+    --bull:#26a69a; --bull-soft:#153f3a;
+    --bear:#ef5350; --bear-soft:#452021;
+    --gold:#f4c430; --gold-soft:#3a3212;
+    --blue:#5c9ded; --violet:#8a7bff;
+    --shadow:0 1px 0 rgba(255,255,255,.03), 0 12px 32px -18px rgba(0,0,0,.9);
+    --r:14px; --r-sm:9px;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+    --disp:"Chakra Petch","IBM Plex Sans",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:
+      radial-gradient(1200px 600px at 78% -8%, #131b26 0%, rgba(19,27,38,0) 60%),
+      var(--bg);
+    color:var(--ink); font-family:var(--sans);
+    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1200px; margin:0 auto; padding:26px 20px 64px}
+  a{color:var(--blue)}
+
+  /* ------- En-tete ------- */
+  .eyebrow{font-family:var(--disp); font-weight:600; font-size:11.5px;
+    letter-spacing:.24em; text-transform:uppercase; color:var(--gold); margin:0 0 10px}
+  .head{display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px 26px; margin-bottom:6px}
+  .pair{font-family:var(--disp); font-weight:700; font-size:clamp(30px,5vw,46px);
+    letter-spacing:.01em; line-height:1; margin:0; text-wrap:balance}
+  .pair .quote{color:var(--ink-3)}
+  .price-wrap{display:flex; align-items:baseline; gap:12px}
+  .price{font-family:var(--mono); font-weight:600; font-size:clamp(26px,4.4vw,40px);
+    letter-spacing:-.01em; font-variant-numeric:tabular-nums}
+  .chg{font-family:var(--mono); font-weight:500; font-size:14px; padding:4px 9px;
+    border-radius:100px; border:1px solid var(--line-2); font-variant-numeric:tabular-nums}
+  .chg.up{color:var(--bull); border-color:#1f4d47; background:var(--bull-soft)}
+  .chg.dn{color:var(--bear); border-color:#5a2a2b; background:var(--bear-soft)}
+  .meta{display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:12px;
+    font-family:var(--mono); font-size:12px; color:var(--ink-2)}
+  .meta b{color:var(--ink); font-weight:500}
+  .snap{color:var(--ink-3)}
+  .tz{color:var(--ink-3)}
+  .refresh{display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; margin-top:14px}
+  .btn-refresh{display:inline-flex; align-items:center; gap:9px; font-family:var(--disp);
+    font-weight:600; font-size:13.5px; letter-spacing:.02em; color:var(--gold);
+    background:var(--gold-soft); border:1px solid #4a3f14; border-radius:100px;
+    padding:9px 17px; cursor:pointer; transition:background .15s, color .15s, border-color .15s}
+  .btn-refresh:hover{background:#4a3f14; color:#ffe9a3}
+  .btn-refresh:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+  .btn-refresh.ok{background:var(--bull-soft); border-color:#1f4d47; color:var(--bull)}
+  .btn-refresh svg{width:15px; height:15px; flex:none}
+  .refresh-hint{font-size:12px; color:var(--ink-3); max-width:52ch; line-height:1.5}
+  .refresh-hint a{color:var(--blue)}
+
+  /* ------- Barre de controle ------- */
+  .controls{display:flex; flex-wrap:wrap; gap:14px; align-items:center;
+    justify-content:space-between; margin:22px 0 14px}
+  .ctl-row{display:flex; flex-wrap:wrap; align-items:center; gap:12px 22px}
+  .ctl-group{display:flex; align-items:center; gap:10px}
+  .ctl-label{font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--ink-3); font-weight:600; font-family:var(--disp)}
+  .seg{display:inline-flex; background:var(--inset); border:1px solid var(--line);
+    border-radius:100px; padding:4px; gap:2px}
+  .seg button{font-family:var(--mono); font-weight:600; font-size:14px; color:var(--ink-2);
+    background:transparent; border:0; padding:8px 16px; border-radius:100px; cursor:pointer;
+    letter-spacing:.02em; transition:color .15s, background .15s}
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed="true"]{color:#191200; background:var(--gold)}
+  .seg button:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+
+  .toggles{display:flex; flex-wrap:wrap; gap:7px}
+  .tg{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:500;
+    color:var(--ink-2); background:var(--inset); border:1px solid var(--line);
+    padding:6px 11px; border-radius:100px; cursor:pointer; user-select:none;
+    transition:color .15s, border-color .15s, opacity .15s}
+  .tg .dot{width:9px; height:9px; border-radius:3px; flex:none}
+  .tg .dash{width:14px; height:0; border-top-width:2px; border-top-style:solid}
+  .tg[aria-pressed="false"]{opacity:.42}
+  .tg[aria-pressed="true"]{color:var(--ink); border-color:var(--line-2)}
+  .tg:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+
+  /* ------- Cartes ------- */
+  .card{background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
+    border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+  .chart-card{padding:14px 14px 8px; position:relative}
+  .legend{display:flex; flex-wrap:wrap; gap:6px 16px; padding:4px 6px 12px;
+    font-size:12px; color:var(--ink-2)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .legend .sw{width:16px; height:0; border-top-width:2.5px; border-top-style:solid}
+  .legend .bx{width:12px; height:12px; border-radius:3px}
+
+  .chart-shell{position:relative; width:100%}
+  canvas{display:block; width:100%; height:auto; touch-action:pan-y}
+  .tip{position:absolute; pointer-events:none; z-index:5; min-width:150px;
+    background:rgba(9,13,18,.94); border:1px solid var(--line-2); border-radius:10px;
+    padding:9px 11px; font-family:var(--mono); font-size:11.5px; color:var(--ink);
+    box-shadow:0 10px 26px -10px rgba(0,0,0,.85); opacity:0; transition:opacity .1s;
+    font-variant-numeric:tabular-nums}
+  .tip .t-time{color:var(--ink-2); margin-bottom:5px; font-size:11px}
+  .tip .row{display:flex; justify-content:space-between; gap:16px}
+  .tip .row span:first-child{color:var(--ink-2)}
+
+  /* ------- Verdict ------- */
+  .verdict{margin-top:18px; padding:20px 22px; border-radius:var(--r);
+    border:1px solid var(--line); background:var(--panel); position:relative; overflow:hidden}
+  .verdict::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--ink-3)}
+  .verdict.long::before{background:var(--bull)} .verdict.short::before{background:var(--bear)}
+  .verdict.none::before{background:var(--gold)}
+  .v-tag{display:inline-flex; align-items:center; gap:8px; font-family:var(--disp);
+    font-weight:700; font-size:13px; letter-spacing:.12em; text-transform:uppercase}
+  .v-tag .pin{width:8px; height:8px; border-radius:50%; background:var(--gold)}
+  .verdict.long .v-tag{color:var(--bull)} .verdict.long .pin{background:var(--bull)}
+  .verdict.short .v-tag{color:var(--bear)} .verdict.short .pin{background:var(--bear)}
+  .verdict.none .v-tag{color:var(--gold)}
+  .v-title{font-family:var(--disp); font-weight:600; font-size:20px; margin:8px 0 4px}
+  .v-body{color:var(--ink-2); max-width:74ch}
+  .v-levels{display:flex; flex-wrap:wrap; gap:10px 12px; margin-top:14px}
+  .lvl{font-family:var(--mono); font-size:13px; padding:8px 13px; border-radius:var(--r-sm);
+    background:var(--inset); border:1px solid var(--line); font-variant-numeric:tabular-nums}
+  .lvl b{display:block; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-3); font-weight:600; margin-bottom:2px}
+  .lvl.entry b{color:var(--ink-2)} .lvl.stop b{color:var(--bear)} .lvl.tp b{color:var(--bull)}
+  .lvl.rr b{color:var(--gold)}
+
+  /* ------- Grille de mesures ------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(184px,1fr));
+    gap:12px; margin-top:18px}
+  .stat{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-sm);
+    padding:14px 15px}
+  .stat .k{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+    font-weight:600; margin-bottom:7px}
+  .stat .val{font-family:var(--mono); font-size:19px; font-weight:500; letter-spacing:-.01em;
+    font-variant-numeric:tabular-nums}
+  .stat .val.sm{font-size:15px; line-height:1.4}
+  .stat .val .u{color:var(--ink-3); font-size:13px}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px}
+  .chip{font-family:var(--mono); font-size:11.5px; padding:3px 8px; border-radius:6px;
+    border:1px solid var(--line-2); color:var(--ink-2)}
+  .chip.up{color:var(--bull); border-color:#255049} .chip.dn{color:var(--bear); border-color:#5a2a2b}
+  .biais.up{color:var(--bull)} .biais.dn{color:var(--bear)} .biais.neutral{color:var(--gold)}
+
+  /* ------- Explications ------- */
+  .section-h{font-family:var(--disp); font-weight:600; font-size:17px; margin:34px 0 4px;
+    letter-spacing:.01em}
+  .section-sub{color:var(--ink-2); margin:0 0 16px; max-width:76ch; font-size:14px}
+  .gloss{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px}
+  .g-item{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-sm); padding:15px 16px}
+  .g-item h4{margin:0 0 6px; font-family:var(--disp); font-weight:600; font-size:14.5px;
+    display:flex; align-items:center; gap:9px}
+  .g-item h4 .mk{width:15px; height:0; border-top-width:3px; border-top-style:solid; flex:none}
+  .g-item h4 .mkb{width:13px; height:13px; border-radius:3px; flex:none}
+  .g-item p{margin:0; font-size:13.5px; color:var(--ink-2)}
+
+  .reason{margin-top:16px; background:var(--panel); border:1px solid var(--line);
+    border-radius:var(--r-sm); padding:16px 18px}
+  .reason ul{margin:0; padding-left:18px} .reason li{margin:4px 0; color:var(--ink-2)}
+  details{margin-top:14px; background:var(--inset); border:1px solid var(--line);
+    border-radius:var(--r-sm); overflow:hidden}
+  summary{cursor:pointer; padding:12px 16px; font-family:var(--disp); font-weight:600;
+    font-size:13px; letter-spacing:.04em; color:var(--ink-2)}
+  summary:hover{color:var(--ink)}
+  details[open] summary{border-bottom:1px solid var(--line)}
+  pre{margin:0; padding:16px; overflow-x:auto; font-family:var(--mono); font-size:12.5px;
+    line-height:1.6; color:var(--ink-2)}
+
+  .disclaimer{margin-top:30px; padding:16px 18px; border:1px dashed var(--line-2);
+    border-radius:var(--r-sm); color:var(--ink-3); font-size:12.5px; max-width:82ch}
+  .disclaimer b{color:var(--ink-2)}
+
+  @media (max-width:560px){
+    .wrap{padding:20px 14px 52px}
+    .controls{flex-direction:column; align-items:stretch}
+    .seg{justify-content:space-between}
+    .seg button{flex:1; padding:9px 4px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Lecture smart money · Méthodologie ICT</p>
+  <div class="head">
+    <h1 class="pair"><span id="baseSym">SOL</span><span class="quote">/USDC</span></h1>
+    <div class="price-wrap">
+      <span class="price" id="price">—</span>
+      <span class="chg" id="chg">—</span>
+    </div>
+  </div>
+  <div class="meta">
+    <span>Source&nbsp;<b id="src">—</b></span>
+    <span>Dernière bougie&nbsp;<b id="tlast">—</b></span>
+    <span class="snap">Scan du <b id="gen">—</b> <span class="tz">· heure de Paris</span></span>
+  </div>
+  <div class="refresh">
+    <button class="btn-refresh" id="btnRefresh" type="button" aria-label="Rafraîchir les données">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      <span class="lbl">Rafraîchir les données</span>
+    </button>
+    <span class="refresh-hint">Copie une instruction de relance autonome à coller dans Claude&nbsp;: l'analyse Python est régénérée sur données réelles, puis la page republiée à la même adresse. <a id="sessionLink" href="https://claude.ai/code" target="_blank" rel="noopener">Ouvrir la session</a>.</span>
+  </div>
+
+  <div class="controls">
+    <div class="ctl-row">
+      <div class="ctl-group"><span class="ctl-label">Paire</span>
+        <div class="seg" id="segPair" role="group" aria-label="Choix de la paire"></div></div>
+      <div class="ctl-group"><span class="ctl-label">Créneau</span>
+        <div class="seg" id="seg" role="group" aria-label="Choix du créneau"></div></div>
+    </div>
+    <div class="toggles" id="toggles" aria-label="Tracés affichés"></div>
+  </div>
+
+  <div class="card chart-card">
+    <div class="chart-shell">
+      <canvas id="chart" aria-label="Graphique en chandeliers SOL/USDC avec tracés ICT"></canvas>
+      <div class="tip" id="tip"></div>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="border-color:var(--gold)"></i>EMA 20</span>
+      <span><i class="sw" style="border-color:var(--violet)"></i>EMA 50</span>
+      <span><i class="bx" style="background:rgba(244,196,48,.22); border:1px solid var(--gold)"></i>Zone OTE</span>
+      <span><i class="bx" style="background:rgba(38,166,154,.18)"></i>FVG / Order block</span>
+      <span><i class="sw" style="border-color:var(--blue); border-top-style:dotted; border-top-width:3px"></i>Liquidité BSL/SSL</span>
+      <span><i class="sw" style="border-color:var(--bear)"></i>BOS / CHoCH</span>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <span class="v-tag"><span class="pin"></span><span id="v-tag-txt">—</span></span>
+    <div class="v-title" id="v-title">—</div>
+    <div class="v-body" id="v-body">—</div>
+    <div class="v-levels" id="v-levels"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <h2 class="section-h">Raisonnement de l'outil sur ce créneau</h2>
+  <p class="section-sub">Ce que la lecture retient à cet instant, dans l'ordre où l'outil l'établit — la structure d'abord, les zones ensuite, la confirmation de momentum enfin.</p>
+  <div class="reason"><ul id="reason-list"></ul></div>
+  <details>
+    <summary>Rapport brut de l'outil (texte)</summary>
+    <pre id="raw">—</pre>
+  </details>
+
+  <h2 class="section-h">Comment lire les tracés</h2>
+  <p class="section-sub">Chaque élément du graphique répond à une question précise de la méthodologie ICT. Rien ici n'est un signal garanti : ce sont des repères déterministes, à confronter à votre propre jugement.</p>
+  <div class="gloss" id="gloss"></div>
+
+  <div class="disclaimer">
+    <b>Avertissement.</b> Outil d'aide heuristique et transparent, non un signal garanti. La méthodologie ICT est discrétionnaire ; empiler des indicateurs n'ajoute pas de certitude. Les données sont un instantané récupéré sur une place de marché à l'instant indiqué, et non un flux temps réel. Ne risquez que ce que vous pouvez perdre.
+  </div>
+</div>
+
+<script id="payload" type="application/json">__PAYLOAD__</script>
+<script>
+(function(){
+  "use strict";
+  const RAW = JSON.parse(document.getElementById("payload").textContent);
+  const C = {
+    bull:"#26a69a", bear:"#ef5350", gold:"#f4c430", blue:"#5c9ded",
+    violet:"#8a7bff", ink:"#e8ecf1", ink2:"#9aa6b4", ink3:"#63707f",
+    grid:"#1c232d", axis:"#2c3644", bg:"#0e1116",
+    bullSoft:"rgba(38,166,154,.16)", bearSoft:"rgba(239,83,80,.16)",
+    goldBand:"rgba(244,196,48,.10)"
+  };
+  const PAIRS = RAW.pairs || ["SOL"];
+  const state = {
+    pair: PAIRS[0],
+    iv: RAW.intervals.includes("1h") ? "1h" : RAW.intervals[0],
+    hover: null,
+    show:{ema:true, ote:true, fvg:true, ob:true, liq:true, struct:true}
+  };
+  const cur = ()=> RAW.data[state.pair][state.iv];
+  const $ = id => document.getElementById(id);
+  const fmt = (v,d=2)=> v==null ? "—" : Number(v).toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d});
+
+  /* ---------- Horodatage en heure de Paris (Europe/Paris, été comme hiver) ---------- */
+  function utcDate(s){ s=String(s).replace(/UTC/i,"").trim(); const p=s.split(/\s+/);
+    return new Date(p[0]+"T"+(p[1]||"00:00")+":00Z"); }
+  const _fDT=new Intl.DateTimeFormat("fr-FR",{timeZone:"Europe/Paris",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  const _fMD=new Intl.DateTimeFormat("fr-FR",{timeZone:"Europe/Paris",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const parisDT=s=> _fDT.format(utcDate(s)).replace(",","");
+  const parisMD=s=> _fMD.format(utcDate(s)).replace(",","");
+
+  /* ---------- Controles : paires ---------- */
+  const segPair = $("segPair");
+  PAIRS.forEach(pr=>{
+    const b=document.createElement("button");
+    b.textContent=pr; b.setAttribute("aria-pressed", pr===state.pair);
+    b.onclick=()=>{ state.pair=pr; state.hover=null; syncPair(); renderAll(); };
+    segPair.appendChild(b);
+  });
+  function syncPair(){ [...segPair.children].forEach(b=> b.setAttribute("aria-pressed", b.textContent===state.pair)); }
+
+  /* ---------- Controles : creneaux ---------- */
+  const seg = $("seg");
+  RAW.intervals.forEach(iv=>{
+    const b=document.createElement("button");
+    b.textContent=iv; b.setAttribute("aria-pressed", iv===state.iv);
+    b.onclick=()=>{ state.iv=iv; state.hover=null; syncSeg(); renderAll(); };
+    seg.appendChild(b);
+  });
+  function syncSeg(){ [...seg.children].forEach(b=> b.setAttribute("aria-pressed", b.textContent===state.iv)); }
+
+  /* ---------- Controles : bascules de traces ---------- */
+  const TOGGLES=[
+    {k:"ema",  label:"EMA",         type:"dash", color:C.gold},
+    {k:"ote",  label:"OTE",         type:"box",  color:"rgba(244,196,48,.5)"},
+    {k:"fvg",  label:"FVG",         type:"box",  color:"rgba(38,166,154,.5)"},
+    {k:"ob",   label:"Order block", type:"box",  color:"rgba(239,83,80,.4)"},
+    {k:"liq",  label:"Liquidité",   type:"dash", color:C.blue},
+    {k:"struct",label:"Structure",  type:"dash", color:C.bear},
+  ];
+  const tgWrap=$("toggles");
+  TOGGLES.forEach(t=>{
+    const el=document.createElement("button");
+    el.className="tg"; el.setAttribute("aria-pressed", state.show[t.k]);
+    const mk=document.createElement("i");
+    if(t.type==="box"){ mk.className="dot"; mk.style.background=t.color; }
+    else{ mk.className="dash"; mk.style.borderTopColor=t.color; }
+    el.appendChild(mk);
+    el.appendChild(document.createTextNode(t.label));
+    el.onclick=()=>{ state.show[t.k]=!state.show[t.k]; el.setAttribute("aria-pressed",state.show[t.k]); draw(); };
+    tgWrap.appendChild(el);
+  });
+
+  /* ---------- Canvas ---------- */
+  const cv=$("chart"), ctx=cv.getContext("2d"), tip=$("tip");
+  let geom=null;   // rects + scales, recalcules a chaque draw
+
+  function niceStep(range, target){
+    const raw=range/target, mag=Math.pow(10,Math.floor(Math.log10(raw))), n=raw/mag;
+    const s = n<1.5?1 : n<3?2 : n<7?5 : 10;
+    return s*mag;
+  }
+
+  function layout(){
+    const cssW=cv.clientWidth, cssH=Math.max(430, Math.min(600, cssW*0.62));
+    const dpr=Math.min(window.devicePixelRatio||1, 2);
+    cv.width=Math.round(cssW*dpr); cv.height=Math.round(cssH*dpr);
+    cv.style.height=cssH+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const padL=8, padR=78, padT=10, padB=22;
+    const W=cssW-padL-padR, H=cssH-padT-padB;
+    const hPrice=H*0.63, hMacd=H*0.19, hVol=H*0.13, gap=H*0.025;
+    return {cssW,cssH,padL,padR,padT,padB,W,
+      price:{x:padL,y:padT,w:W,h:hPrice},
+      macd :{x:padL,y:padT+hPrice+gap,w:W,h:hMacd},
+      vol  :{x:padL,y:padT+hPrice+gap+hMacd+gap,w:W,h:hVol}};
+  }
+
+  function draw(){
+    const d=cur(); if(!d) return;
+    const g=layout(); geom=g;
+    const n=d.candles.length;
+    const step=g.W/n, bw=Math.max(1.4, step*0.62);
+    const xAt=i=> g.price.x + step*(i+0.5);
+
+    // --- echelle de prix : bornes stables (independantes des bascules) ---
+    let ys=[d.vlo,d.vhi,d.ote.lo,d.ote.hi];
+    if(d.bsl!=null) ys.push(d.bsl); if(d.ssl!=null) ys.push(d.ssl);
+    if(d.proposal){ ys.push(d.proposal.entry,d.proposal.stop,d.proposal.target); }
+    let yLo=Math.min(...ys), yHi=Math.max(...ys); const pad=(yHi-yLo)*0.06||1;
+    yLo-=pad; yHi+=pad;
+    const yP=v=> g.price.y + g.price.h*(1-(v-yLo)/(yHi-yLo));
+
+    ctx.clearRect(0,0,g.cssW,g.cssH);
+
+    // --- grille prix + labels a droite ---
+    ctx.font='11px "IBM Plex Mono",monospace'; ctx.textBaseline="middle";
+    const stp=niceStep(yHi-yLo,5); const start=Math.ceil(yLo/stp)*stp;
+    ctx.lineWidth=1;
+    for(let v=start; v<=yHi; v+=stp){
+      const y=yP(v);
+      ctx.strokeStyle=C.grid; ctx.beginPath(); ctx.moveTo(g.price.x,y); ctx.lineTo(g.price.x+g.W,y); ctx.stroke();
+      ctx.fillStyle=C.ink3; ctx.textAlign="left"; ctx.fillText(fmt(v,2), g.price.x+g.W+7, y);
+    }
+
+    // --- Zone OTE (derriere) ---
+    if(state.show.ote){
+      const y1=yP(d.ote.hi), y2=yP(d.ote.lo);
+      ctx.fillStyle=C.goldBand; ctx.fillRect(g.price.x, y1, g.W, y2-y1);
+      const yo=yP(d.ote.opt);
+      ctx.strokeStyle=C.gold; ctx.lineWidth=1.1; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(g.price.x,yo); ctx.lineTo(g.price.x+g.W,yo); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=C.gold; ctx.textAlign="right"; ctx.font='600 10px "IBM Plex Mono",monospace';
+      ctx.fillText("OTE .705 "+fmt(d.ote.opt,2), g.price.x+g.W-6, yo-8);
+    }
+
+    // --- FVG (2 plus proches) ---
+    if(state.show.fvg){
+      d.fvgs.forEach(f=>{
+        const x0=xAt(f.x0), yt=yP(f.top), yb=yP(f.bot);
+        ctx.fillStyle = f.kind==="bull" ? "rgba(31,111,102,.30)" : "rgba(122,47,47,.34)";
+        ctx.fillRect(x0, yt, g.price.x+g.W - x0, yb-yt);
+        ctx.fillStyle=C.ink2; ctx.textAlign="left"; ctx.font='9px "IBM Plex Mono",monospace';
+        ctx.fillText("FVG", x0+4, (yt+yb)/2);
+      });
+    }
+
+    // --- Order block dans le sens du biais ---
+    if(state.show.ob && d.ob){
+      const o=d.ob, x0=xAt(o.x0), yt=yP(o.high), yb=yP(o.low);
+      ctx.fillStyle = o.kind==="bullish" ? "rgba(38,166,154,.12)" : "rgba(239,83,80,.12)";
+      ctx.fillRect(x0, yt, g.price.x+g.W - x0, yb-yt);
+      ctx.strokeStyle = o.kind==="bullish" ? "rgba(38,166,154,.5)":"rgba(239,83,80,.5)";
+      ctx.lineWidth=1; ctx.strokeRect(x0+.5, yt+.5, g.price.x+g.W - x0-1, yb-yt-1);
+      ctx.fillStyle = o.kind==="bullish"?C.bull:C.bear; ctx.textAlign="left";
+      ctx.font='9px "IBM Plex Mono",monospace';
+      ctx.fillText("OB "+o.kind, x0+4, yt-6);
+    }
+
+    // --- Liquidite BSL / SSL ---
+    if(state.show.liq){
+      ctx.setLineDash([2,3]); ctx.lineWidth=1; ctx.strokeStyle=C.blue;
+      ctx.font='9px "IBM Plex Mono",monospace'; ctx.fillStyle=C.blue;
+      if(d.bsl!=null){ const y=yP(d.bsl); ctx.beginPath(); ctx.moveTo(g.price.x,y); ctx.lineTo(g.price.x+g.W,y); ctx.stroke();
+        ctx.textAlign="left"; ctx.fillText("BSL "+fmt(d.bsl,2), g.price.x+5, y-6); }
+      if(d.ssl!=null){ const y=yP(d.ssl); ctx.beginPath(); ctx.moveTo(g.price.x,y); ctx.lineTo(g.price.x+g.W,y); ctx.stroke();
+        ctx.textAlign="left"; ctx.fillText("SSL "+fmt(d.ssl,2), g.price.x+5, y+10); }
+      ctx.setLineDash([]);
+    }
+
+    // --- Chandeliers ---
+    for(let i=0;i<n;i++){
+      const c=d.candles[i], x=xAt(i), up=c.c>=c.o;
+      const col=up?C.bull:C.bear;
+      ctx.strokeStyle=col; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x,yP(c.h)); ctx.lineTo(x,yP(c.l)); ctx.stroke();
+      const yo=yP(c.o), yc=yP(c.c); const top=Math.min(yo,yc); let hgt=Math.abs(yc-yo);
+      if(hgt<1) hgt=1;
+      ctx.fillStyle=col; ctx.fillRect(x-bw/2, top, bw, hgt);
+    }
+
+    // --- EMA 20 / 50 ---
+    if(state.show.ema){
+      const line=(arr,color)=>{ ctx.strokeStyle=color; ctx.lineWidth=1.4; ctx.beginPath();
+        let started=false;
+        for(let i=0;i<n;i++){ const v=arr[i]; if(v==null||isNaN(v))continue;
+          const x=xAt(i), y=yP(v); if(!started){ctx.moveTo(x,y);started=true;} else ctx.lineTo(x,y);} ctx.stroke(); };
+      line(d.ema50, C.violet); line(d.ema20, C.gold);
+    }
+
+    // --- Evenements de structure (dernier CHoCH + dernier BOS) ---
+    if(state.show.struct){
+      d.events.forEach(ev=>{
+        const y=yP(ev.level), col=ev.up?C.bull:C.bear;
+        const x1=xAt(Math.max(0,ev.vx-6)), x2=xAt(Math.min(n-1,ev.vx+2));
+        ctx.strokeStyle=col; ctx.lineWidth=1.3; ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke();
+        ctx.fillStyle=col; ctx.textAlign="left"; ctx.font='600 10px "IBM Plex Mono",monospace';
+        ctx.fillText(ev.label, xAt(ev.vx)+4, y-6);
+      });
+    }
+
+    // --- Proposition d'ordre (lignes) ---
+    if(d.proposal){
+      const p=d.proposal;
+      [["entry",p.entry,C.ink,"ENTRÉE"],["stop",p.stop,C.bear,"STOP"],["target",p.target,C.bull,"TP"]].forEach(([_,lvl,col,txt])=>{
+        const y=yP(lvl); ctx.strokeStyle=col; ctx.lineWidth=1.4; ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(g.price.x,y); ctx.lineTo(g.price.x+g.W,y); ctx.stroke();
+        ctx.fillStyle=col; ctx.textAlign="left"; ctx.font='600 10px "IBM Plex Mono",monospace';
+        ctx.fillText(txt+" "+fmt(lvl,2), g.price.x+5, y-6);
+      });
+    }
+
+    // --- MACD ---
+    drawMacd(d,g,xAt,n,step);
+    // --- Volume ---
+    drawVol(d,g,xAt,n,bw);
+    // --- Axe temps ---
+    drawTimeAxis(d,g,xAt,n);
+    // --- Croix de survol ---
+    if(state.hover!=null && state.hover>=0 && state.hover<n) drawCrosshair(d,g,xAt,yP,yLo,yHi);
+  }
+
+  function drawMacd(d,g,xAt,n,step){
+    const m=d.macd, all=[...m.line,...m.signal,...m.hist].filter(v=>v!=null&&!isNaN(v));
+    let lo=Math.min(...all,0), hi=Math.max(...all,0); const pad=(hi-lo)*0.12||1; lo-=pad; hi+=pad;
+    const yM=v=> g.macd.y + g.macd.h*(1-(v-lo)/(hi-lo));
+    const bw=Math.max(1,step*0.6);
+    ctx.strokeStyle=C.grid; ctx.lineWidth=1;
+    ctx.strokeRect(g.macd.x+.5,g.macd.y+.5,g.macd.w-1,g.macd.h-1);
+    const y0=yM(0); ctx.strokeStyle=C.axis; ctx.beginPath(); ctx.moveTo(g.macd.x,y0); ctx.lineTo(g.macd.x+g.macd.w,y0); ctx.stroke();
+    for(let i=0;i<n;i++){ const h=m.hist[i]; if(h==null)continue; const x=xAt(i), y=yM(h);
+      ctx.fillStyle= h>=0? "rgba(38,166,154,.65)":"rgba(239,83,80,.65)";
+      ctx.fillRect(x-bw/2, Math.min(y,y0), bw, Math.abs(y-y0)||1); }
+    const pl=(arr,color)=>{ ctx.strokeStyle=color; ctx.lineWidth=1; ctx.beginPath(); let s=false;
+      for(let i=0;i<n;i++){ const v=arr[i]; if(v==null||isNaN(v))continue; const x=xAt(i),y=yM(v);
+        if(!s){ctx.moveTo(x,y);s=true;}else ctx.lineTo(x,y);} ctx.stroke(); };
+    pl(m.line,C.blue); pl(m.signal,C.gold);
+    ctx.fillStyle=C.ink3; ctx.font='600 9px "IBM Plex Mono",monospace'; ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillText("MACD", g.macd.x+5, g.macd.y+4); ctx.textBaseline="middle";
+  }
+
+  function drawVol(d,g,xAt,n,bw){
+    const vmax=Math.max(...d.candles.map(c=>c.v))||1;
+    const yV=v=> g.vol.y + g.vol.h*(1-v/vmax);
+    for(let i=0;i<n;i++){ const c=d.candles[i], x=xAt(i), up=c.c>=c.o, y=yV(c.v);
+      ctx.fillStyle= up? "rgba(38,166,154,.55)":"rgba(239,83,80,.55)";
+      ctx.fillRect(x-bw/2, y, bw, g.vol.y+g.vol.h-y); }
+    ctx.fillStyle=C.ink3; ctx.font='600 9px "IBM Plex Mono",monospace'; ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillText("VOL", g.vol.x+5, g.vol.y+3); ctx.textBaseline="middle";
+  }
+
+  function drawTimeAxis(d,g,xAt,n){
+    const step=Math.max(1,Math.floor(n/6));
+    ctx.fillStyle=C.ink3; ctx.font='10px "IBM Plex Mono",monospace'; ctx.textAlign="center"; ctx.textBaseline="top";
+    for(let i=0;i<n;i+=step){ // heure de Paris
+      ctx.fillText(parisMD(d.candles[i].t), xAt(i), g.vol.y+g.vol.h+5); }
+    ctx.textBaseline="middle";
+  }
+
+  function drawCrosshair(d,g,xAt,yP,yLo,yHi){
+    const i=state.hover, x=xAt(i);
+    ctx.save(); ctx.strokeStyle="rgba(154,166,180,.35)"; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(x,g.price.y); ctx.lineTo(x,g.vol.y+g.vol.h); ctx.stroke();
+    ctx.restore();
+    const c=d.candles[i], up=c.c>=c.o;
+    ctx.fillStyle= up?C.bull:C.bear;
+    ctx.beginPath(); ctx.arc(x,yP(c.c),2.6,0,7); ctx.fill();
+  }
+
+  /* ---------- Info-bulle ---------- */
+  cv.addEventListener("mousemove", e=>{
+    if(!geom) return;
+    const r=cv.getBoundingClientRect(); const px=e.clientX-r.left;
+    const d=cur(), n=d.candles.length, step=geom.W/n;
+    let i=Math.floor((px-geom.price.x)/step);
+    if(i<0||i>=n){ hideTip(); return; }
+    state.hover=i; draw();
+    const c=d.candles[i], up=c.c>=c.o;
+    tip.innerHTML=`<div class="t-time">${parisMD(c.t)} · Paris</div>`+
+      `<div class="row"><span>O</span><span>${fmt(c.o)}</span></div>`+
+      `<div class="row"><span>H</span><span>${fmt(c.h)}</span></div>`+
+      `<div class="row"><span>L</span><span>${fmt(c.l)}</span></div>`+
+      `<div class="row"><span>C</span><span style="color:${up?C.bull:C.bear}">${fmt(c.c)}</span></div>`+
+      `<div class="row"><span>Vol</span><span>${fmt(c.v,0)}</span></div>`;
+    tip.style.opacity=1;
+    const tw=tip.offsetWidth, x=geom.price.x+step*(i+0.5);
+    let left=x+14; if(left+tw>geom.cssW) left=x-14-tw;
+    tip.style.left=Math.max(4,left)+"px"; tip.style.top="14px";
+  });
+  cv.addEventListener("mouseleave", ()=>{ hideTip(); });
+  function hideTip(){ if(state.hover!=null){ state.hover=null; draw(); } tip.style.opacity=0; }
+
+  /* ---------- Panneaux textuels ---------- */
+  function biasClass(bias){ return bias===1?"up":bias===-1?"dn":"neutral"; }
+
+  function renderVerdict(d){
+    const v=$("verdict"); const p=d.proposal;
+    v.className="verdict "+(p?(p.side==="LONG"?"long":"short"):"none");
+    if(p){
+      $("v-tag-txt").textContent="Ordre proposé · "+p.side;
+      $("v-title").textContent=(p.side==="LONG"?"Achat":"Vente")+" en confluence OTE + FVG/OB";
+      $("v-body").textContent=p.reason;
+      $("v-levels").innerHTML=
+        `<div class="lvl entry"><b>Entrée</b>${fmt(p.entry)}</div>`+
+        `<div class="lvl stop"><b>Stop</b>${fmt(p.stop)}</div>`+
+        `<div class="lvl tp"><b>Take profit</b>${fmt(p.target)}</div>`+
+        `<div class="lvl rr"><b>Rendement / risque</b>${fmt(p.rr)} : 1</div>`;
+    } else {
+      $("v-tag-txt").textContent="Aucun ordre — rester à l'écart";
+      $("v-title").textContent="Pas de confluence exploitable au prix actuel";
+      $("v-body").textContent="La méthodologie n'aligne pas les trois conditions requises (prix dans la zone OTE, Fair Value Gap ou order block non mitigé dans le sens du biais, et structure cohérente) avec un ratio rendement/risque d'au moins 1,5. La lecture recommande d'attendre un meilleur point d'entrée plutôt que de forcer une position.";
+      $("v-levels").innerHTML="";
+    }
+  }
+
+  function renderGrid(d){
+    const bc=biasClass(d.bias);
+    const fvgTxt = d.fvgs.length
+      ? d.fvgs.map(f=>`<span class="chip ${f.kind==="bull"?"up":"dn"}">${f.kind==="bull"?"haussier":"baissier"} ${fmt(f.bot)}–${fmt(f.top)}</span>`).join("")
+      : `<span class="chip">aucun proche</span>`;
+    const structTxt = d.struct_seq.length
+      ? d.struct_seq.map(e=>{ const up=e.kind.endsWith("up"); return `<span class="chip ${up?"up":"dn"}">${e.kind}@${fmt(e.level)}</span>`; }).join("")
+      : `<span class="chip">n/d</span>`;
+    const macdCls = d.macd_txt.startsWith("positif")?"up":"dn";
+    $("grid").innerHTML=
+      `<div class="stat"><div class="k">Biais / tendance</div><div class="val sm biais ${bc}">${d.trend_txt}</div></div>`+
+      `<div class="stat"><div class="k">Swing bas / haut</div><div class="val">${fmt(d.swing_low)} <span class="u">/</span> ${fmt(d.swing_high)}</div></div>`+
+      `<div class="stat"><div class="k">Zone OTE (0.62–0.79)</div><div class="val sm">${fmt(d.ote.lo)} – ${fmt(d.ote.hi)}<br><span class="u">optimal 0.705 :</span> ${fmt(d.ote.opt)}</div></div>`+
+      `<div class="stat"><div class="k">Liquidité BSL / SSL</div><div class="val sm">${d.bsl!=null?fmt(d.bsl):"—"} <span class="u">au-dessus</span><br>${d.ssl!=null?fmt(d.ssl):"—"} <span class="u">en dessous</span></div></div>`+
+      `<div class="stat"><div class="k">MACD</div><div class="val sm biais ${macdCls}">${d.macd_txt}</div></div>`+
+      `<div class="stat"><div class="k">FVG non comblés</div><div class="chips">${fvgTxt}</div></div>`+
+      `<div class="stat" style="grid-column:1/-1"><div class="k">Séquence de structure (récente)</div><div class="chips">${structTxt}</div></div>`;
+  }
+
+  function renderReason(d){
+    const items=[];
+    d.notes.forEach(nt=>items.push(nt));
+    items.push(`Momentum : ${d.macd_txt}.`);
+    if(d.bsl!=null||d.ssl!=null){
+      items.push(`Liquidité la plus proche — ${d.bsl!=null?("acheteuse à "+fmt(d.bsl)+" au-dessus"):""}${(d.bsl!=null&&d.ssl!=null)?", ":""}${d.ssl!=null?("vendeuse à "+fmt(d.ssl)+" en dessous"):""}.`);
+    }
+    items.push(d.proposal
+      ? `Confluence retenue : ordre ${d.proposal.side} avec un ratio rendement/risque de ${fmt(d.proposal.rr)}:1.`
+      : `Verdict : aucune confluence nette au prix actuel — rester à l'écart.`);
+    $("reason-list").innerHTML=items.map(t=>`<li>${t}</li>`).join("");
+    $("raw").textContent=d.report_txt.trim();
+  }
+
+  function renderHeader(d){
+    $("price").textContent=fmt(d.price);
+    const first=d.candles[0].c, last=d.price, diff=last-first, pct=first?diff/first*100:0;
+    const chg=$("chg"); const up=diff>=0;
+    chg.className="chg "+(up?"up":"dn");
+    chg.textContent=(up?"+":"")+fmt(diff)+" ("+(up?"+":"")+fmt(pct)+"%) · fenêtre";
+    $("src").textContent=d.source;
+    $("tlast").textContent=parisDT(d.time_last);
+  }
+
+  const GLOSS=[
+    {t:"EMA 20 / 50", mk:"dash", c:C.gold, c2:C.violet, d:"Deux moyennes exponentielles. Leur ordre donne le contexte de tendance : l'EMA 20 (or) au-dessus de l'EMA 50 (violet) penche haussier, l'inverse baissier."},
+    {t:"Structure — BOS / CHoCH", mk:"dash", c:C.bear, d:"Un BOS (Break of Structure) est une cassure dans le sens de la tendance : continuation. Un CHoCH (Change of Character) est la première cassure en sens inverse : signal de retournement potentiel."},
+    {t:"Zone OTE (0.62–0.79)", mk:"box", c:"rgba(244,196,48,.6)", d:"Optimal Trade Entry : la zone de retracement où la méthodologie cherche une entrée, avec le niveau 0.705 (pointillé or) comme cœur de la zone."},
+    {t:"Fair Value Gap", mk:"box", c:"rgba(38,166,154,.5)", d:"Déséquilibre laissé par une impulsion rapide (un « trou » de prix). Le marché tend à y revenir pour le combler avant de repartir ; un FVG non comblé agit comme aimant."},
+    {t:"Order block", mk:"box", c:"rgba(239,83,80,.45)", d:"Dernière bougie de sens opposé juste avant une forte impulsion. On la lit comme l'empreinte des ordres institutionnels, donc une zone de réaction probable."},
+    {t:"Liquidité BSL / SSL", mk:"dash", c:C.blue, d:"BSL (Buy-Side Liquidity) au-dessus et SSL (Sell-Side Liquidity) en dessous : les niveaux où se logent les stops, cibles naturelles d'un mouvement qui va « chercher la liquidité »."},
+    {t:"MACD", mk:"dash", c:C.blue, c2:C.gold, d:"Confirmation de momentum. L'histogramme mesure l'écart entre la ligne MACD (bleu) et sa ligne de signal (or) ; son inclinaison indique si l'élan s'accélère ou faiblit."},
+  ];
+  function renderGloss(){
+    $("gloss").innerHTML=GLOSS.map(g=>{
+      let mk;
+      if(g.mk==="box") mk=`<i class="mkb" style="background:${g.c}"></i>`;
+      else if(g.c2) mk=`<span style="display:inline-flex;gap:3px"><i class="mk" style="border-top-color:${g.c}"></i><i class="mk" style="border-top-color:${g.c2}"></i></span>`;
+      else mk=`<i class="mk" style="border-top-color:${g.c}"></i>`;
+      return `<div class="g-item"><h4>${mk}${g.t}</h4><p>${g.d}</p></div>`;
+    }).join("");
+  }
+
+  function renderAll(){
+    const d=cur();
+    $("baseSym").textContent=state.pair;
+    renderHeader(d); renderVerdict(d); renderGrid(d); renderReason(d);
+    draw();
+  }
+
+  /* ---------- Bouton : rafraîchir (copie une instruction de relance) ---------- */
+  const ARTIFACT_URL="https://claude.ai/code/artifact/67b771f1-c61a-4d72-818c-af8567b50e71";
+  const SESSION_URL="https://claude.ai/code/session_01YWSEPd8JW41UPDhSegadpi";
+  const INSTR="Relance le scan des paires SOL/USDC, BTC/USDC et ETH/USDC. Sur le dépôt "+
+    "kergall/medikid, branche claude/sol-usdc-trading-analysis-mr7ya6 : récupère les bougies "+
+    "réelles (Binance) pour ces trois paires aux créneaux 1m, 5m, 15m, 1h, 4h, applique "+
+    "l'analyse ICT de analysis/sol_usdc_analysis.py, régénère les données, puis republie "+
+    "l'artefact « Terminal ICT SOL/USDC » à la même adresse "+ARTIFACT_URL+" .";
+  const btn=$("btnRefresh"), lbl=btn.querySelector(".lbl");
+  const sl=$("sessionLink"); if(sl) sl.href=SESSION_URL;
+  btn.addEventListener("click", async ()=>{
+    let ok=false;
+    try{ await navigator.clipboard.writeText(INSTR); ok=true; }
+    catch(e){ ok=window.prompt("Copiez cette instruction et collez-la dans Claude :", INSTR)!==null; }
+    if(ok){ btn.classList.add("ok"); const old=lbl.textContent; lbl.textContent="Instruction copiée — collez-la dans Claude";
+      setTimeout(()=>{ lbl.textContent=old; btn.classList.remove("ok"); }, 2800); }
+  });
+
+  /* ---------- Init ---------- */
+  $("gen").textContent=parisDT(RAW.generated_utc);
+  renderGloss();
+  renderAll();
+  let ro=null;
+  if("ResizeObserver" in window){ ro=new ResizeObserver(()=>draw()); ro.observe(cv.parentElement); }
+  else window.addEventListener("resize", draw);
+})();
+</script>
