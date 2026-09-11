@@ -1,0 +1,595 @@
+<title>Radar BTC</title>
+<meta name="description" content="Synthèse à la demande des actualités et rendez-vous macro et crypto susceptibles d'influencer le cours du Bitcoin.">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eaedf2;
+    --surface: #ffffff;
+    --surface-2: #f5f7fa;
+    --surface-3: #eef1f6;
+    --ink: #14181f;
+    --ink-soft: #545c6b;
+    --ink-faint: #8a93a2;
+    --line: #dde2ea;
+    --line-strong: #c9d0db;
+    --accent: #f7931a;
+    --accent-strong: #d97c00;
+    --accent-wash: #fdf0dd;
+    --up: #0f9f5f;
+    --up-wash: #e3f6ec;
+    --down: #d6453a;
+    --down-wash: #fce6e4;
+    --vol: #c98a00;
+    --vol-wash: #fbf0d6;
+    --neutral: #6b7280;
+    --neutral-wash: #eceef2;
+    --shadow: 0 1px 2px rgba(20,24,31,.05), 0 8px 24px -12px rgba(20,24,31,.18);
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --display: "Archivo", var(--sans);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      color-scheme: dark;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c0f15;
+      --surface: #151a22;
+      --surface-2: #1a212b;
+      --surface-3: #212a36;
+      --ink: #e8ecf3;
+      --ink-soft: #a3acbb;
+      --ink-faint: #6f7888;
+      --line: #252d3a;
+      --line-strong: #323c4c;
+      --accent: #f7a53a;
+      --accent-strong: #f7931a;
+      --accent-wash: #2a2014;
+      --up: #35c882;
+      --up-wash: #132a20;
+      --down: #ff6f62;
+      --down-wash: #2e1816;
+      --vol: #f5bc45;
+      --vol-wash: #2c2412;
+      --neutral: #8b93a3;
+      --neutral-wash: #222933;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0c0f15;
+    --surface: #151a22;
+    --surface-2: #1a212b;
+    --surface-3: #212a36;
+    --ink: #e8ecf3;
+    --ink-soft: #a3acbb;
+    --ink-faint: #6f7888;
+    --line: #252d3a;
+    --line-strong: #323c4c;
+    --accent: #f7a53a;
+    --accent-strong: #f7931a;
+    --accent-wash: #2a2014;
+    --up: #35c882;
+    --up-wash: #132a20;
+    --down: #ff6f62;
+    --down-wash: #2e1816;
+    --vol: #f5bc45;
+    --vol-wash: #2c2412;
+    --neutral: #8b93a3;
+    --neutral-wash: #222933;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding-block: 28px 64px;
+    padding-inline: 20px;
+  }
+
+  /* ---- Header ---- */
+  .masthead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px 24px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .coin {
+    width: 46px; height: 46px; flex: none;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ffc878 0%, var(--accent) 46%, var(--accent-strong) 100%);
+    display: grid; place-items: center;
+    color: #fff;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 24px;
+    box-shadow: 0 4px 14px -4px rgba(217,124,0,.6);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(26px, 4vw, 34px);
+    letter-spacing: -.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .tagline { margin: 2px 0 0; color: var(--ink-soft); font-size: 13.5px; }
+  .actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .btn {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 14.5px;
+    color: #fff;
+    background: var(--accent-strong);
+    border: none;
+    border-radius: 10px;
+    padding: 11px 20px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 9px;
+    box-shadow: 0 6px 18px -8px rgba(217,124,0,.8);
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .55; cursor: default; box-shadow: none; filter: none; }
+  .btn .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #fff;
+  }
+  .btn.busy .dot { animation: pulse 1s ease-in-out infinite; }
+  .btn-ghost {
+    background: none; color: var(--ink-soft); box-shadow: none;
+    border: 1px solid var(--line-strong); padding: 8px 14px; font-size: 13px;
+  }
+  .btn-ghost:hover { filter: none; color: var(--ink); border-color: var(--ink-faint); }
+  .meta-line { font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+  @media (prefers-reduced-motion: reduce) { .btn.busy .dot { animation: none; } }
+
+  /* ---- Synthèse ---- */
+  .synth {
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .synth-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent-strong);
+  }
+  .synth-body { padding: 18px 20px; }
+  .synth-placeholder { color: var(--ink-soft); font-size: 14px; display: flex; gap: 12px; align-items: flex-start; }
+  .synth-placeholder .mark { color: var(--accent); font-size: 20px; line-height: 1.2; }
+  .synth-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .synth-list li {
+    display: grid; grid-template-columns: 18px 1fr; gap: 12px;
+    font-size: 14.5px; color: var(--ink); max-width: 72ch;
+  }
+  .synth-list li::before {
+    content: ""; width: 7px; height: 7px; margin-top: 8px;
+    border-radius: 2px; background: var(--accent); transform: rotate(45deg);
+  }
+  .err { color: var(--down); font-size: 13.5px; }
+
+  /* ---- Timeline ---- */
+  .section-title {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    margin: 36px 2px 4px;
+  }
+  .section-title h2 {
+    font-family: var(--display); font-weight: 700; font-size: 19px;
+    letter-spacing: -.01em; margin: 0;
+  }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-soft); font-family: var(--mono); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+  .events { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .event {
+    position: relative;
+    display: grid;
+    grid-template-columns: 116px 1fr 190px;
+    gap: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--neutral);
+    border-radius: 14px;
+    padding: 16px 18px 16px 16px;
+    box-shadow: var(--shadow);
+  }
+  .event[data-effet="hausse"] { border-left-color: var(--up); }
+  .event[data-effet="baisse"] { border-left-color: var(--down); }
+  .event[data-effet="volatil"] { border-left-color: var(--vol); }
+  .event[data-effet="neutre"] { border-left-color: var(--neutral); }
+
+  .when { font-family: var(--mono); }
+  .when .d { font-size: 12px; color: var(--ink-soft); text-transform: capitalize; }
+  .when .t { font-size: 21px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .when .cd { font-size: 11.5px; color: var(--accent-strong); margin-top: 3px; }
+
+  .mid { min-width: 0; }
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    background: var(--surface-3); color: var(--ink-soft);
+    border: 1px solid var(--line);
+  }
+  .chip.verify { background: var(--accent-wash); color: var(--accent-strong); border-color: transparent; }
+  .event h3 { font-size: 15.5px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.005em; }
+  .event p { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 60ch; }
+
+  .verdict { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--sans); font-weight: 600; font-size: 12.5px;
+    padding: 5px 11px; border-radius: 8px;
+    background: var(--neutral-wash); color: var(--neutral);
+  }
+  .badge .arw { font-size: 13px; line-height: 1; }
+  .badge[data-effet="hausse"] { background: var(--up-wash); color: var(--up); }
+  .badge[data-effet="baisse"] { background: var(--down-wash); color: var(--down); }
+  .badge[data-effet="volatil"] { background: var(--vol-wash); color: var(--vol); }
+  .badge.pending { background: var(--surface-3); color: var(--ink-faint); font-weight: 500; }
+  .metrics { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); display: flex; flex-direction: column; gap: 2px; }
+  .metrics b { color: var(--ink); font-weight: 600; }
+  .commentary { font-size: 12.5px; color: var(--ink-soft); font-style: italic; max-width: 26ch; }
+
+  /* ---- Disclaimer ---- */
+  .disclaimer {
+    margin-top: 30px;
+    font-size: 12px; line-height: 1.6; color: var(--ink-faint);
+    border-top: 1px dashed var(--line-strong);
+    padding-top: 16px;
+    max-width: 78ch;
+  }
+  .disclaimer b { color: var(--ink-soft); }
+
+  @media (max-width: 720px) {
+    .event { grid-template-columns: 92px 1fr; }
+    .verdict { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .commentary { max-width: none; }
+    .actions { align-items: flex-start; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <div class="coin">₿</div>
+      <div>
+        <h1>Radar BTC</h1>
+        <p class="tagline">Rendez-vous macro &amp; crypto à surveiller — horaires en heure française, effet attendu sur le cours.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="gen">
+        <span class="dot"></span>
+        <span id="gen-label">Générer la synthèse</span>
+      </button>
+      <button class="btn btn-ghost" id="stop" hidden>Arrêter</button>
+      <span class="meta-line" id="status">Calendrier chargé · cliquez pour l'analyse IA</span>
+    </div>
+  </header>
+
+  <section class="synth" aria-live="polite">
+    <div class="synth-head">
+      <span class="eyebrow">Synthèse de marché</span>
+    </div>
+    <div class="synth-body" id="synth-body">
+      <div class="synth-placeholder">
+        <span class="mark">→</span>
+        <span>Lancez <b>« Générer la synthèse »</b> : Claude évalue le contexte récent du Bitcoin (macro, flux, régulation, technique) et l'effet attendu de chaque rendez-vous ci-dessous. Sans lancer l'analyse, seul le calendrier des dates fiables est affiché.</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-title">
+    <h2>Rendez-vous à venir</h2>
+    <div class="legend">
+      <span><i style="background:var(--up)"></i> Haussier</span>
+      <span><i style="background:var(--down)"></i> Baissier</span>
+      <span><i style="background:var(--vol)"></i> Volatil</span>
+      <span><i style="background:var(--neutral)"></i> Neutre</span>
+    </div>
+  </div>
+  <div class="events" id="events"></div>
+
+  <p class="disclaimer">
+    <b>Portée et limites.</b> Les <b>dates et horaires</b> des événements macro (Fed/FOMC, inflation CPI) et des échéances d'options sont issus des calendriers officiels publiés à l'avance et convertis automatiquement en heure de Paris. L'<b>effet attendu</b>, l'<b>amplitude</b> et la <b>synthèse d'actualité</b> sont générés par Claude au moment où vous cliquez : ils reflètent sa base de connaissances (qui comporte une date de coupure) et non des données de marché en direct. Un artefact ne peut pas interroger le web ni afficher le cours en temps réel. Les estimations sont <b>indicatives</b> et ne constituent pas un conseil en investissement. Vérifiez les événements marqués « IA · à vérifier » auprès d'une source officielle.
+  </p>
+</div>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Calendrier ancré (dates fiables, horodatage UTC absolu) ----
+  // L'heure française est calculée par Intl (fuseau Europe/Paris), ce qui gère
+  // correctement les changements d'heure d'été/hiver.
+  var MACRO = [
+    { id: "cpi-08", iso: "2026-09-11T12:30:00Z", titre: "Inflation CPI — données d'août", cat: "Macro US",
+      note: "Publication à 8h30 ET. Une surprise à la hausse de l'inflation tend à peser sur le BTC (Fed plus restrictive)." },
+    { id: "fomc-09", iso: "2026-09-16T18:00:00Z", titre: "Décision de taux de la Fed (FOMC) + projections", cat: "Banque centrale",
+      note: "Décision à 14h ET, conférence de presse à 14h30. Réunion avec dot plot : forte volatilité habituelle." },
+    { id: "cpi-09", iso: "2026-10-14T12:30:00Z", titre: "Inflation CPI — données de septembre", cat: "Macro US",
+      note: "Publication à 8h30 ET." },
+    { id: "fomc-10", iso: "2026-10-28T18:00:00Z", titre: "Décision de taux de la Fed (FOMC)", cat: "Banque centrale",
+      note: "Décision à 14h ET, conférence de presse à 14h30." },
+    { id: "cpi-10", iso: "2026-11-10T13:30:00Z", titre: "Inflation CPI — données d'octobre", cat: "Macro US",
+      note: "Publication à 8h30 ET." },
+    { id: "fomc-12", iso: "2026-12-09T19:00:00Z", titre: "Décision de taux de la Fed (FOMC) + projections", cat: "Banque centrale",
+      note: "Décision à 14h ET. Réunion avec dot plot : dernière de l'année, très suivie." }
+  ];
+
+  // ---- Échéances mensuelles d'options BTC : dernier vendredi du mois, 08h00 UTC ----
+  function lastFridayUTC(year, month) { // month 0-11
+    var d = new Date(Date.UTC(year, month + 1, 0, 8, 0, 0)); // dernier jour du mois, 08:00 UTC
+    while (d.getUTCDay() !== 5) { d.setUTCDate(d.getUTCDate() - 1); }
+    return d;
+  }
+  function buildExpiries() {
+    var now = new Date(), out = [];
+    for (var i = 0; i < 4; i++) {
+      var ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+      var y = ref.getUTCFullYear(), m = ref.getUTCMonth();
+      var d = lastFridayUTC(y, m);
+      var quarter = (m === 2 || m === 5 || m === 8 || m === 11); // mars/juin/sept/déc
+      out.push({
+        id: "exp-" + y + "-" + m,
+        iso: d.toISOString(),
+        titre: "Échéance des options Bitcoin" + (quarter ? " (trimestrielle)" : " (mensuelle)"),
+        cat: "Dérivés crypto",
+        note: quarter
+          ? "Expiration trimestrielle (CME/Deribit) à 8h UTC : volumes élevés, mouvements possibles autour du « max pain »."
+          : "Expiration mensuelle (CME/Deribit) à 8h UTC : pics de volatilité fréquents à l'approche puis après le fixing."
+      });
+    }
+    return out;
+  }
+
+  // ---- État ----
+  var baseEvents = MACRO.concat(buildExpiries()).map(function (e) {
+    return {
+      id: e.id, ts: new Date(e.iso), titre: e.titre, cat: e.cat, note: e.note,
+      source: "base", effet: null, ampleur: null, confiance: null, commentaire: null
+    };
+  });
+  var aiEvents = []; // événements ajoutés par l'IA
+
+  // ---- Formatage ----
+  var fmtDate = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
+  var fmtTime = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  var ARROW = { hausse: "▲", baisse: "▼", volatil: "◆", neutre: "—" };
+  var LABEL = { hausse: "Haussier", baisse: "Baissier", volatil: "Volatil", neutre: "Neutre" };
+
+  function countdown(ts) {
+    var ms = ts.getTime() - Date.now();
+    if (ms < 0) return "en cours / passé";
+    var h = Math.floor(ms / 3.6e6);
+    if (h < 1) return "dans < 1 h";
+    if (h < 24) return "dans " + h + " h";
+    var dys = Math.floor(h / 24);
+    return "dans " + dys + " j";
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function allEvents() {
+    return baseEvents.concat(aiEvents)
+      .filter(function (e) { return e.ts.getTime() >= Date.now() - 6 * 3.6e6; })
+      .sort(function (a, b) { return a.ts - b.ts; });
+  }
+
+  function render() {
+    var host = document.getElementById("events");
+    var list = allEvents();
+    if (!list.length) { host.innerHTML = '<p class="err">Aucun rendez-vous à venir dans le calendrier ancré. Lancez l\'analyse pour que Claude propose les prochaines échéances connues.</p>'; return; }
+    host.innerHTML = list.map(function (e) {
+      var effet = e.effet || null;
+      var verify = e.source === "ai" ? '<span class="chip verify">IA · à vérifier</span>' : "";
+      var verdict;
+      if (effet) {
+        verdict =
+          '<span class="badge" data-effet="' + effet + '"><span class="arw">' + ARROW[effet] + '</span>' + LABEL[effet] + '</span>' +
+          '<span class="metrics">' +
+            (e.ampleur ? 'Amplitude <b>' + esc(e.ampleur) + '</b>' : '') +
+            (e.confiance ? '<span>Confiance : ' + esc(e.confiance) + '</span>' : '') +
+          '</span>' +
+          (e.commentaire ? '<span class="commentary">' + esc(e.commentaire) + '</span>' : '');
+      } else {
+        verdict = '<span class="badge pending">Effet à générer</span>' +
+                  '<span class="commentary">' + esc(e.note || "") + '</span>';
+      }
+      return '<article class="event" data-effet="' + (effet || "neutre") + '">' +
+        '<div class="when">' +
+          '<div class="d">' + esc(fmtDate.format(e.ts)) + '</div>' +
+          '<div class="t">' + esc(fmtTime.format(e.ts)) + '</div>' +
+          '<div class="cd">' + esc(countdown(e.ts)) + '</div>' +
+        '</div>' +
+        '<div class="mid">' +
+          '<div class="chips"><span class="chip">' + esc(e.cat) + '</span>' + verify + '</div>' +
+          '<h3>' + esc(e.titre) + '</h3>' +
+          (effet && e.note ? '<p>' + esc(e.note) + '</p>' : '') +
+        '</div>' +
+        '<div class="verdict">' + verdict + '</div>' +
+      '</article>';
+    }).join("");
+  }
+
+  function renderSynth(items, note) {
+    var body = document.getElementById("synth-body");
+    if (!items || !items.length) { return; }
+    body.innerHTML = '<ul class="synth-list">' +
+      items.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' +
+      (note ? '<p class="err" style="margin-top:14px">' + esc(note) + '</p>' : '');
+  }
+  function synthError(msg) {
+    document.getElementById("synth-body").innerHTML = '<p class="err">' + esc(msg) + '</p>';
+  }
+
+  render();
+  setInterval(render, 60000); // rafraîchit les décomptes
+
+  // ---- Intégration Claude (capacité sample) ----
+  var btn = document.getElementById("gen");
+  var stopBtn = document.getElementById("stop");
+  var status = document.getElementById("status");
+  var label = document.getElementById("gen-label");
+  var ctl = null;
+
+  function setBusy(b) {
+    btn.classList.toggle("busy", b);
+    btn.disabled = b;
+    stopBtn.hidden = !b;
+    label.textContent = b ? "Analyse en cours…" : "Actualiser la synthèse";
+  }
+
+  var ERR = {
+    not_granted: "Accès à Claude refusé pour cet artefact. Le calendrier reste disponible.",
+    sampling_disabled: "L'analyse par Claude n'est pas disponible sur ce compte.",
+    rate_limited: "Trop de requêtes. Réessayez dans quelques instants.",
+    session_expired: "Session expirée : reconnectez-vous puis réessayez.",
+    refused: "Claude n'a pas pu traiter cette demande.",
+    invalid_json: "Réponse illisible. Réessayez.",
+    prompt_too_large: "Requête trop volumineuse.",
+    upstream_error: "Incident temporaire. Réessayez."
+  };
+
+  function applyAI(data) {
+    if (!data || typeof data !== "object") throw { code: "invalid_json" };
+    renderSynth(data.synthese, null);
+
+    var byId = {};
+    (data.evenements || []).forEach(function (a) { if (a && a.id) byId[a.id] = a; });
+
+    baseEvents.forEach(function (e) {
+      var a = byId[e.id];
+      if (a) {
+        e.effet = normEffet(a.effet);
+        e.ampleur = a.ampleur || null;
+        e.confiance = a.confiance || null;
+        e.commentaire = a.commentaire || null;
+      }
+    });
+
+    // événements proposés par l'IA (id préfixé "ia-")
+    aiEvents = (data.evenements || [])
+      .filter(function (a) { return a && /^ia-/.test(String(a.id)) && a.iso; })
+      .map(function (a) {
+        return {
+          id: a.id, ts: new Date(a.iso), titre: a.titre || "Événement", cat: a.categorie || "IA",
+          note: a.commentaire || "", source: "ai",
+          effet: normEffet(a.effet), ampleur: a.ampleur || null,
+          confiance: a.confiance || null, commentaire: a.commentaire || null
+        };
+      })
+      .filter(function (e) { return !isNaN(e.ts.getTime()); });
+
+    render();
+  }
+  function normEffet(v) {
+    v = String(v || "").toLowerCase();
+    return (v === "hausse" || v === "baisse" || v === "volatil" || v === "neutre") ? v : null;
+  }
+
+  function buildPrompt() {
+    var payload = baseEvents.map(function (e) {
+      return { id: e.id, iso: e.ts.toISOString(), titre: e.titre, categorie: e.cat };
+    });
+    return [
+      "Tu es analyste de marché spécialisé sur le Bitcoin (BTC).",
+      "Date et heure actuelles : " + new Date().toISOString() + " (UTC).",
+      "",
+      "Voici une liste d'événements programmés aux dates FIABLES (ne modifie PAS ces dates) :",
+      JSON.stringify(payload),
+      "",
+      "Réponds UNIQUEMENT avec un objet JSON de la forme :",
+      '{',
+      '  "synthese": [ "phrase 1", "phrase 2", ... ],',
+      '  "evenements": [ { "id": "...", "effet": "hausse|baisse|neutre|volatil", "ampleur": "±2–4%", "confiance": "faible|moyenne|élevée", "commentaire": "une phrase" } ]',
+      '}',
+      "",
+      "Consignes :",
+      "- synthese : 3 à 5 phrases en français résumant les facteurs récents et le contexte pertinents pour le cours du BTC (politique monétaire, flux ETF, régulation, positionnement technique). Reste prudent et factuel ; précise si un point est incertain au regard de ta date de coupure.",
+      "- evenements : pour CHAQUE id fourni ci-dessus, donne l'effet directionnel attendu, une estimation d'amplitude en % (fourchette), un niveau de confiance et un commentaire d'une phrase expliquant le mécanisme.",
+      "- Tu peux AJOUTER d'autres rendez-vous majeurs à venir que tu connais (emploi US/NFP, PCE, halving, procès/échéances réglementaires, déblocages) : utilise un id préfixé \"ia-\", et inclus alors \"iso\" (date/heure UTC ISO8601), \"titre\" et \"categorie\". N'ajoute que des événements POSTÉRIEURS à la date actuelle et dont tu es raisonnablement sûr.",
+      "- Langue : français. Aucune autre sortie que le JSON."
+    ].join("\n");
+  }
+
+  function hookStop() {
+    stopBtn.onclick = function () { if (ctl) ctl.abort(); };
+  }
+
+  (async function init() {
+    var sample = null;
+    try { sample = await claude.use("sample"); } catch (e) { sample = null; }
+    if (!sample) {
+      btn.disabled = true;
+      label.textContent = "Analyse IA indisponible";
+      status.textContent = "Ouvrez cette page dans Claude pour activer l'analyse.";
+      return;
+    }
+    hookStop();
+    btn.onclick = async function () {
+      ctl = new AbortController();
+      setBusy(true);
+      status.textContent = "Claude réfléchit (5–60 s)…";
+      document.getElementById("synth-body").innerHTML =
+        '<div class="synth-placeholder"><span class="mark">◷</span><span>Analyse en cours…</span></div>';
+      try {
+        var data = await sample.json(buildPrompt(), {
+          modelTier: "default",
+          signal: ctl.signal,
+          cache: { gcTime: 1800000 }
+        });
+        applyAI(data);
+        status.textContent = "Synthèse générée à " + fmtTime.format(new Date()) + " (heure de Paris)";
+      } catch (e) {
+        var code = (e && e.code) || "upstream_error";
+        if (code === "cancelled") {
+          status.textContent = "Analyse interrompue.";
+          document.getElementById("synth-body").innerHTML =
+            '<div class="synth-placeholder"><span class="mark">→</span><span>Analyse interrompue. Relancez quand vous voulez.</span></div>';
+        } else {
+          synthError(ERR[code] || ERR.upstream_error);
+          status.textContent = "Échec de l'analyse.";
+        }
+      } finally {
+        setBusy(false);
+      }
+    };
+  })();
+})();
+</script>
