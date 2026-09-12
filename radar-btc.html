@@ -261,6 +261,42 @@
   .metrics b { color: var(--ink); font-weight: 600; }
   .commentary { font-size: 12.5px; color: var(--ink-soft); font-style: italic; max-width: 26ch; }
 
+  .chip.vol { background: var(--vol-wash); color: var(--vol); border-color: transparent; }
+  .rumeur { margin: 2px 0 8px; font-size: 13px; color: var(--ink-soft); max-width: 62ch; }
+  .rumeur .tag-r {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--accent-strong); margin-right: 6px;
+  }
+  .scenarios { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+  .sc { display: grid; grid-template-columns: 16px 1fr; gap: 7px; font-size: 12.5px; color: var(--ink-soft); max-width: 62ch; }
+  .sc .arw { font-size: 11px; line-height: 1.4; }
+  .sc.up .arw { color: var(--up); }
+  .sc.down .arw { color: var(--down); }
+
+  /* ---- Biais général ---- */
+  .bias-banner {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 16px; margin-bottom: 16px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--neutral);
+  }
+  .bias-banner[data-effet="hausse"] { border-left-color: var(--up); background: var(--up-wash); }
+  .bias-banner[data-effet="baisse"] { border-left-color: var(--down); background: var(--down-wash); }
+  .bias-banner[data-effet="volatil"] { border-left-color: var(--vol); background: var(--vol-wash); }
+  .bias-banner .verdict-big {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--display); font-weight: 700; font-size: 18px; flex: none;
+  }
+  .bias-banner .verdict-big .arw { font-size: 18px; }
+  .bias-banner[data-effet="hausse"] .verdict-big { color: var(--up); }
+  .bias-banner[data-effet="baisse"] .verdict-big { color: var(--down); }
+  .bias-banner[data-effet="volatil"] .verdict-big { color: var(--vol); }
+  .bias-banner[data-effet="neutre"] .verdict-big { color: var(--neutral); }
+  .bias-banner .bias-txt { font-size: 13.5px; color: var(--ink); min-width: 200px; flex: 1; }
+  .bias-banner .bias-amp { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+
   /* ---- Disclaimer ---- */
   .disclaimer {
     margin-top: 30px;
@@ -285,7 +321,7 @@
       <div class="coin">₿</div>
       <div>
         <h1>Radar BTC</h1>
-        <p class="tagline">Rendez-vous macro &amp; crypto à surveiller — horaires en heure française, effet attendu sur le cours.</p>
+        <p class="tagline">Rendez-vous macro &amp; crypto à surveiller — attentes du marché, scénarios de hausse et de baisse, biais anticipé. Horaires en heure française.</p>
       </div>
     </div>
     <div class="actions">
@@ -305,7 +341,7 @@
     <div class="synth-body" id="synth-body">
       <div class="synth-placeholder">
         <span class="mark">→</span>
-        <span>Lancez <b>« Générer la synthèse »</b> : Claude évalue le contexte récent du Bitcoin (macro, flux, régulation, technique) et l'effet attendu de chaque rendez-vous ci-dessous. Sans lancer l'analyse, seul le calendrier des dates fiables est affiché.</span>
+        <span>Lancez <b>« Générer la synthèse »</b> : à partir des attentes et rumeurs de marché, Claude estime pour chaque rendez-vous le <b>scénario de hausse</b>, le <b>scénario de baisse</b> et le <b>biais net anticipé</b>, puis en déduit un biais général court terme. Sans lancer l'analyse, seul le calendrier des dates fiables est affiché.</span>
       </div>
     </div>
   </section>
@@ -313,16 +349,15 @@
   <div class="section-title">
     <h2>Rendez-vous à venir</h2>
     <div class="legend">
-      <span><i style="background:var(--up)"></i> Haussier</span>
-      <span><i style="background:var(--down)"></i> Baissier</span>
-      <span><i style="background:var(--vol)"></i> Volatil</span>
-      <span><i style="background:var(--neutral)"></i> Neutre</span>
+      <span><i style="background:var(--up)"></i> Biais haussier</span>
+      <span><i style="background:var(--down)"></i> Biais baissier</span>
+      <span><i style="background:var(--neutral)"></i> Neutre / incertain</span>
     </div>
   </div>
   <div class="events" id="events"></div>
 
   <p class="disclaimer">
-    <b>Portée et limites.</b> Les <b>dates et horaires</b> des événements macro (Fed/FOMC, inflation CPI) et des échéances d'options sont issus des calendriers officiels publiés à l'avance et convertis automatiquement en heure de Paris. L'<b>effet attendu</b>, l'<b>amplitude</b> et la <b>synthèse d'actualité</b> sont générés par Claude au moment où vous cliquez : ils reflètent sa base de connaissances (qui comporte une date de coupure) et non des données de marché en direct. Un artefact ne peut pas interroger le web ni afficher le cours en temps réel. Les estimations sont <b>indicatives</b> et ne constituent pas un conseil en investissement. Vérifiez les événements marqués « IA · à vérifier » auprès d'une source officielle.
+    <b>Portée et limites.</b> Les <b>dates et horaires</b> des événements macro (Fed/FOMC, inflation CPI) et des échéances d'options sont issus des calendriers officiels publiés à l'avance et convertis automatiquement en heure de Paris. Les <b>attentes et rumeurs</b>, les <b>scénarios</b>, le <b>biais anticipé</b>, l'<b>amplitude</b> et la <b>synthèse</b> sont générés par Claude au moment où vous cliquez : ils reflètent sa base de connaissances (qui comporte une date de coupure) et non des données de marché en direct. Les rumeurs de marché sont par nature invérifiables et parfois fausses ; un artefact ne peut pas interroger le web ni afficher le cours en temps réel. Le biais indiqué décrit le penchant le plus probable <b>si les attentes se confirment</b> — la direction réelle dépend de l'écart avec ce qui est déjà intégré au cours. Ces éléments sont <b>indicatifs</b> et ne constituent pas un conseil en investissement. Vérifiez les événements marqués « IA · à vérifier » auprès d'une source officielle.
   </p>
 </div>
 
@@ -382,7 +417,8 @@
   var baseEvents = MACRO.concat(buildExpiries()).map(function (e) {
     return {
       id: e.id, ts: new Date(e.iso), titre: e.titre, cat: e.cat, note: e.note,
-      source: "base", effet: null, ampleur: null, confiance: null, commentaire: null
+      source: "base", biais: null, ampleur: null, confiance: null,
+      rumeur: null, scenarioH: null, scenarioB: null, volatil: false
     };
   });
   var aiEvents = []; // événements ajoutés par l'IA
@@ -416,43 +452,70 @@
     var list = allEvents();
     if (!list.length) { host.innerHTML = '<p class="err">Aucun rendez-vous à venir dans le calendrier ancré. Lancez l\'analyse pour que Claude propose les prochaines échéances connues.</p>'; return; }
     host.innerHTML = list.map(function (e) {
-      var effet = e.effet || null;
+      var biais = e.biais || null;
       var verify = e.source === "ai" ? '<span class="chip verify">IA · à vérifier</span>' : "";
+      var volTag = e.volatil ? '<span class="chip vol">volatilité élevée</span>' : "";
+
+      var mid =
+        '<div class="chips"><span class="chip">' + esc(e.cat) + '</span>' + volTag + verify + '</div>' +
+        '<h3>' + esc(e.titre) + '</h3>';
+      if (e.rumeur) {
+        mid += '<p class="rumeur"><span class="tag-r">Attentes / rumeurs</span>' + esc(e.rumeur) + '</p>';
+      }
+      if (biais && (e.scenarioH || e.scenarioB)) {
+        mid += '<div class="scenarios">' +
+          (e.scenarioH ? '<div class="sc up"><span class="arw">▲</span><span>' + esc(e.scenarioH) + '</span></div>' : '') +
+          (e.scenarioB ? '<div class="sc down"><span class="arw">▼</span><span>' + esc(e.scenarioB) + '</span></div>' : '') +
+          '</div>';
+      } else if (!biais) {
+        mid += '<p>' + esc(e.note || "") + '</p>';
+      }
+
       var verdict;
-      if (effet) {
+      if (biais) {
         verdict =
-          '<span class="badge" data-effet="' + effet + '"><span class="arw">' + ARROW[effet] + '</span>' + LABEL[effet] + '</span>' +
+          '<span class="badge" data-effet="' + biais + '"><span class="arw">' + ARROW[biais] + '</span>' + LABEL[biais] + '</span>' +
           '<span class="metrics">' +
             (e.ampleur ? 'Amplitude <b>' + esc(e.ampleur) + '</b>' : '') +
             (e.confiance ? '<span>Confiance : ' + esc(e.confiance) + '</span>' : '') +
-          '</span>' +
-          (e.commentaire ? '<span class="commentary">' + esc(e.commentaire) + '</span>' : '');
+          '</span>';
       } else {
-        verdict = '<span class="badge pending">Effet à générer</span>' +
-                  '<span class="commentary">' + esc(e.note || "") + '</span>';
+        verdict = '<span class="badge pending">Biais à générer</span>';
       }
-      return '<article class="event" data-effet="' + (effet || "neutre") + '">' +
+
+      return '<article class="event" data-effet="' + (biais || "neutre") + '">' +
         '<div class="when">' +
           '<div class="d">' + esc(fmtDate.format(e.ts)) + '</div>' +
           '<div class="t">' + esc(fmtTime.format(e.ts)) + '</div>' +
           '<div class="cd">' + esc(countdown(e.ts)) + '</div>' +
         '</div>' +
-        '<div class="mid">' +
-          '<div class="chips"><span class="chip">' + esc(e.cat) + '</span>' + verify + '</div>' +
-          '<h3>' + esc(e.titre) + '</h3>' +
-          (effet && e.note ? '<p>' + esc(e.note) + '</p>' : '') +
-        '</div>' +
+        '<div class="mid">' + mid + '</div>' +
         '<div class="verdict">' + verdict + '</div>' +
       '</article>';
     }).join("");
   }
 
-  function renderSynth(items, note) {
+  function renderSynth(data) {
     var body = document.getElementById("synth-body");
-    if (!items || !items.length) { return; }
-    body.innerHTML = '<ul class="synth-list">' +
-      items.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>' +
-      (note ? '<p class="err" style="margin-top:14px">' + esc(note) + '</p>' : '');
+    var html = "";
+
+    var bg = data.biais_global || null;
+    if (bg) {
+      var sens = normBiais(bg.sens) || "neutre";
+      var lib = { hausse: "Biais haussier", baisse: "Biais baissier", neutre: "Biais neutre / incertain" }[sens];
+      html += '<div class="bias-banner" data-effet="' + sens + '">' +
+        '<span class="verdict-big"><span class="arw">' + ARROW[sens] + '</span>' + lib + '</span>' +
+        '<span class="bias-txt">' + esc(bg.commentaire || "") + '</span>' +
+        (bg.ampleur ? '<span class="bias-amp">' + esc(bg.ampleur) + '</span>' : '') +
+        '</div>';
+    }
+
+    var items = data.synthese || [];
+    if (items.length) {
+      html += '<ul class="synth-list">' +
+        items.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>';
+    }
+    if (html) body.innerHTML = html;
   }
   function synthError(msg) {
     document.getElementById("synth-body").innerHTML = '<p class="err">' + esc(msg) + '</p>';
@@ -488,7 +551,7 @@
 
   function applyAI(data) {
     if (!data || typeof data !== "object") throw { code: "invalid_json" };
-    renderSynth(data.synthese, null);
+    renderSynth(data);
 
     var byId = {};
     (data.evenements || []).forEach(function (a) { if (a && a.id) byId[a.id] = a; });
@@ -496,10 +559,13 @@
     baseEvents.forEach(function (e) {
       var a = byId[e.id];
       if (a) {
-        e.effet = normEffet(a.effet);
+        e.biais = normBiais(a.biais);
         e.ampleur = a.ampleur || null;
         e.confiance = a.confiance || null;
-        e.commentaire = a.commentaire || null;
+        e.rumeur = a.rumeur || null;
+        e.scenarioH = a.scenario_hausse || null;
+        e.scenarioB = a.scenario_baisse || null;
+        e.volatil = !!a.volatil;
       }
     });
 
@@ -509,18 +575,19 @@
       .map(function (a) {
         return {
           id: a.id, ts: new Date(a.iso), titre: a.titre || "Événement", cat: a.categorie || "IA",
-          note: a.commentaire || "", source: "ai",
-          effet: normEffet(a.effet), ampleur: a.ampleur || null,
-          confiance: a.confiance || null, commentaire: a.commentaire || null
+          note: "", source: "ai",
+          biais: normBiais(a.biais), ampleur: a.ampleur || null, confiance: a.confiance || null,
+          rumeur: a.rumeur || null, scenarioH: a.scenario_hausse || null,
+          scenarioB: a.scenario_baisse || null, volatil: !!a.volatil
         };
       })
       .filter(function (e) { return !isNaN(e.ts.getTime()); });
 
     render();
   }
-  function normEffet(v) {
+  function normBiais(v) {
     v = String(v || "").toLowerCase();
-    return (v === "hausse" || v === "baisse" || v === "volatil" || v === "neutre") ? v : null;
+    return (v === "hausse" || v === "baisse" || v === "neutre") ? v : null;
   }
 
   function buildPrompt() {
@@ -528,23 +595,39 @@
       return { id: e.id, iso: e.ts.toISOString(), titre: e.titre, categorie: e.cat };
     });
     return [
-      "Tu es analyste de marché spécialisé sur le Bitcoin (BTC).",
+      "Tu es analyste de marché spécialisé sur le Bitcoin (BTC), orienté événements.",
       "Date et heure actuelles : " + new Date().toISOString() + " (UTC).",
       "",
       "Voici une liste d'événements programmés aux dates FIABLES (ne modifie PAS ces dates) :",
       JSON.stringify(payload),
       "",
+      "Méthode : le cours réagit à l'ÉCART entre l'annonce et ce qui est déjà anticipé. Appuie-toi sur les",
+      "ATTENTES et RUMEURS de marché connues pour chaque échéance afin d'en déduire un biais directionnel.",
+      "",
       "Réponds UNIQUEMENT avec un objet JSON de la forme :",
       '{',
+      '  "biais_global": { "sens": "hausse|baisse|neutre", "ampleur": "±X%", "commentaire": "1-2 phrases sur le biais court terme du BTC" },',
       '  "synthese": [ "phrase 1", "phrase 2", ... ],',
-      '  "evenements": [ { "id": "...", "effet": "hausse|baisse|neutre|volatil", "ampleur": "±2–4%", "confiance": "faible|moyenne|élevée", "commentaire": "une phrase" } ]',
+      '  "evenements": [ {',
+      '    "id": "...",',
+      '    "rumeur": "ce qui est anticipé / se dit sur cette échéance",',
+      '    "scenario_hausse": "condition qui ferait MONTER le cours",',
+      '    "scenario_baisse": "condition qui ferait BAISSER le cours",',
+      '    "biais": "hausse|baisse|neutre",',
+      '    "ampleur": "±2–4%",',
+      '    "confiance": "faible|moyenne|élevée",',
+      '    "volatil": true',
+      '  } ]',
       '}',
       "",
       "Consignes :",
-      "- synthese : 3 à 5 phrases en français résumant les facteurs récents et le contexte pertinents pour le cours du BTC (politique monétaire, flux ETF, régulation, positionnement technique). Reste prudent et factuel ; précise si un point est incertain au regard de ta date de coupure.",
-      "- evenements : pour CHAQUE id fourni ci-dessus, donne l'effet directionnel attendu, une estimation d'amplitude en % (fourchette), un niveau de confiance et un commentaire d'une phrase expliquant le mécanisme.",
-      "- Tu peux AJOUTER d'autres rendez-vous majeurs à venir que tu connais (emploi US/NFP, PCE, halving, procès/échéances réglementaires, déblocages) : utilise un id préfixé \"ia-\", et inclus alors \"iso\" (date/heure UTC ISO8601), \"titre\" et \"categorie\". N'ajoute que des événements POSTÉRIEURS à la date actuelle et dont tu es raisonnablement sûr.",
-      "- Langue : français. Aucune autre sortie que le JSON."
+      "- biais_global : ton penchant net (hausse/baisse/neutre) pour le BTC à court terme, avec une amplitude et une justification brève. Si tu manques de données récentes, choisis \"neutre\" et dis-le.",
+      "- synthese : 3 à 5 phrases résumant le contexte pertinent (politique monétaire, flux ETF, régulation, technique).",
+      "- evenements : pour CHAQUE id fourni, renseigne rumeur, scenario_hausse, scenario_baisse, un biais net, l'amplitude estimée en %, la confiance, et volatil=true si l'événement provoque typiquement de fortes secousses.",
+      "- biais = le sens le PLUS PROBABLE si les attentes se confirment ; utilise \"neutre\" quand la direction est réellement indécidable.",
+      "- confiance = ton degré de certitude sur ce biais (et NON la probabilité d'une hausse).",
+      "- Tu peux AJOUTER d'autres rendez-vous majeurs à venir (emploi US/NFP, PCE, halving, échéances réglementaires, déblocages) : id préfixé \"ia-\" avec en plus \"iso\" (UTC ISO8601), \"titre\", \"categorie\". Uniquement postérieurs à la date actuelle et dont tu es raisonnablement sûr.",
+      "- Sois prudent et factuel ; signale ce qui est incertain au regard de ta date de coupure. Langue : français. Aucune autre sortie que le JSON."
     ].join("\n");
   }
 
