@@ -160,6 +160,22 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
   @media (prefers-reduced-motion: reduce) { .btn.busy .dot { animation: none; } }
 
+  .coin.or { background: radial-gradient(circle at 34% 30%, #ffe9a8 0%, #e6b93f 46%, #a9791a 100%); box-shadow: 0 4px 14px -4px rgba(169,121,26,.6); }
+
+  /* ---- Sélecteur d'actif ---- */
+  .asset-tabs {
+    display: inline-flex; gap: 4px; margin-top: 22px; padding: 4px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .asset-tab {
+    font-family: var(--sans); font-weight: 600; font-size: 14px; color: var(--ink-soft);
+    background: none; border: none; border-radius: 9px; padding: 8px 18px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .asset-tab .g { font-family: var(--display); font-weight: 800; }
+  .asset-tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .asset-tab:disabled { cursor: default; opacity: .55; }
+
   /* ---- Synthèse ---- */
   .synth {
     margin-top: 24px;
@@ -318,10 +334,10 @@
 <div class="wrap">
   <header class="masthead">
     <div class="brand">
-      <div class="coin">₿</div>
+      <div class="coin" id="coin">₿</div>
       <div>
-        <h1>Radar BTC</h1>
-        <p class="tagline">Rendez-vous macro &amp; crypto à surveiller — attentes du marché, scénarios de hausse et de baisse, biais anticipé. Horaires en heure française.</p>
+        <h1>Radar BTC · Or</h1>
+        <p class="tagline">Rendez-vous macro à surveiller pour le Bitcoin et l'or — attentes du marché, scénarios de hausse et de baisse, biais anticipé. Horaires en heure française.</p>
       </div>
     </div>
     <div class="actions">
@@ -333,6 +349,11 @@
       <span class="meta-line" id="status">Calendrier chargé · cliquez pour l'analyse IA</span>
     </div>
   </header>
+
+  <div class="asset-tabs" role="tablist" aria-label="Choix de l'actif">
+    <button class="asset-tab" role="tab" data-asset="btc" aria-selected="true"><span class="g">₿</span> Bitcoin</button>
+    <button class="asset-tab" role="tab" data-asset="or" aria-selected="false"><span class="g">Au</span> Or</button>
+  </div>
 
   <section class="synth" aria-live="polite">
     <div class="synth-head">
@@ -372,20 +393,37 @@
   // ---- Calendrier ancré (dates fiables, horodatage UTC absolu) ----
   // L'heure française est calculée par Intl (fuseau Europe/Paris), ce qui gère
   // correctement les changements d'heure d'été/hiver.
+  // Rendez-vous macro communs au Bitcoin et à l'or (mêmes dates, lectures différentes).
   var MACRO = [
-    { id: "cpi-08", iso: "2026-09-11T12:30:00Z", titre: "Inflation CPI — données d'août", cat: "Macro US",
-      note: "Publication à 8h30 ET. Une surprise à la hausse de l'inflation tend à peser sur le BTC (Fed plus restrictive)." },
-    { id: "fomc-09", iso: "2026-09-16T18:00:00Z", titre: "Décision de taux de la Fed (FOMC) + projections", cat: "Banque centrale",
-      note: "Décision à 14h ET, conférence de presse à 14h30. Réunion avec dot plot : forte volatilité habituelle." },
-    { id: "cpi-09", iso: "2026-10-14T12:30:00Z", titre: "Inflation CPI — données de septembre", cat: "Macro US",
-      note: "Publication à 8h30 ET." },
-    { id: "fomc-10", iso: "2026-10-28T18:00:00Z", titre: "Décision de taux de la Fed (FOMC)", cat: "Banque centrale",
-      note: "Décision à 14h ET, conférence de presse à 14h30." },
-    { id: "cpi-10", iso: "2026-11-10T13:30:00Z", titre: "Inflation CPI — données d'octobre", cat: "Macro US",
-      note: "Publication à 8h30 ET." },
-    { id: "fomc-12", iso: "2026-12-09T19:00:00Z", titre: "Décision de taux de la Fed (FOMC) + projections", cat: "Banque centrale",
-      note: "Décision à 14h ET. Réunion avec dot plot : dernière de l'année, très suivie." }
+    { id: "cpi-08",  iso: "2026-09-11T12:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données d'août" },
+    { id: "fomc-09", iso: "2026-09-16T18:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC) + projections" },
+    { id: "cpi-09",  iso: "2026-10-14T12:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données de septembre" },
+    { id: "fomc-10", iso: "2026-10-28T18:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC)" },
+    { id: "cpi-10",  iso: "2026-11-10T13:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données d'octobre" },
+    { id: "fomc-12", iso: "2026-12-09T19:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC) + projections" }
   ];
+
+  // Lecture propre à chaque actif d'un même rendez-vous macro.
+  var NOTES = {
+    btc: {
+      cpi: "Publication à 8h30 ET. Une inflation plus forte qu'attendu tend à peser sur le BTC (Fed plus restrictive) ; plus faible, à le soutenir.",
+      fomc: "Décision à 14h ET, conférence à 14h30. Forte volatilité. Un ton accommodant est généralement porteur pour le BTC, un ton restrictif défavorable."
+    },
+    or: {
+      cpi: "Publication à 8h30 ET. Effet ambigu pour l'or : couverture contre l'inflation, mais un chiffre fort renforce le dollar et les taux réels (souvent baissier à court terme).",
+      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (taux réels plus bas, dollar plus faible) est habituellement haussier pour l'or ; un ton restrictif, baissier."
+    }
+  };
+
+  // Métadonnées par actif (libellés, glyphe, cadrage de l'analyse).
+  var ASSET = {
+    btc: { nom: "le Bitcoin (BTC)", court: "le BTC", glyph: "₿", coinClass: "",
+           synthese: "politique monétaire, flux des ETF, régulation, positionnement technique",
+           ajouts: "emploi US (NFP), PCE, halving, échéances réglementaires, déblocages de jetons" },
+    or:  { nom: "l'or (XAU/USD)", court: "l'or", glyph: "Au", coinClass: "or",
+           synthese: "politique monétaire, taux d'intérêt réels, dollar (DXY), achats des banques centrales, tensions géopolitiques, demande de valeur refuge",
+           ajouts: "emploi US (NFP), PCE, réunions de la BCE, échéances d'options COMEX sur l'or" }
+  };
 
   // ---- Échéances mensuelles d'options BTC : dernier vendredi du mois, 08h00 UTC ----
   function lastFridayUTC(year, month) { // month 0-11
@@ -413,15 +451,29 @@
     return out;
   }
 
-  // ---- État ----
-  var baseEvents = MACRO.concat(buildExpiries()).map(function (e) {
+  function mkEvent(id, iso, titre, cat, note) {
     return {
-      id: e.id, ts: new Date(e.iso), titre: e.titre, cat: e.cat, note: e.note,
+      id: id, ts: new Date(iso), titre: titre, cat: cat, note: note,
       source: "base", biais: null, ampleur: null, confiance: null,
       rumeur: null, scenarioH: null, scenarioB: null, volatil: false
     };
-  });
-  var aiEvents = []; // événements ajoutés par l'IA
+  }
+  function buildBase(asset) {
+    var list = MACRO.map(function (e) {
+      return mkEvent(e.id, e.iso, e.titre, e.cat, NOTES[asset][e.kind]);
+    });
+    if (asset === "btc") {
+      buildExpiries().forEach(function (e) { list.push(mkEvent(e.id, e.iso, e.titre, e.cat, e.note)); });
+    }
+    return list;
+  }
+
+  // ---- État (par actif) ----
+  var STATE = {
+    btc: { events: buildBase("btc"), ai: [], synth: null },
+    or:  { events: buildBase("or"),  ai: [], synth: null }
+  };
+  var current = "btc";
 
   // ---- Formatage ----
   var fmtDate = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
@@ -442,7 +494,8 @@
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   function allEvents() {
-    return baseEvents.concat(aiEvents)
+    var s = STATE[current];
+    return s.events.concat(s.ai)
       .filter(function (e) { return e.ts.getTime() >= Date.now() - 6 * 3.6e6; })
       .sort(function (a, b) { return a.ts - b.ts; });
   }
@@ -521,6 +574,15 @@
     document.getElementById("synth-body").innerHTML = '<p class="err">' + esc(msg) + '</p>';
   }
 
+  var PLACEHOLDER =
+    '<div class="synth-placeholder"><span class="mark">→</span><span>Lancez <b>« Générer la synthèse »</b> : à partir des attentes et rumeurs de marché, Claude estime pour chaque rendez-vous le <b>scénario de hausse</b>, le <b>scénario de baisse</b> et le <b>biais net anticipé</b>, puis en déduit un biais général court terme. Sans lancer l\'analyse, seul le calendrier des dates fiables est affiché.</span></div>';
+
+  function renderSynthCurrent() {
+    var s = STATE[current];
+    if (s.synth) { renderSynth(s.synth); }
+    else { document.getElementById("synth-body").innerHTML = PLACEHOLDER; }
+  }
+
   render();
   setInterval(render, 60000); // rafraîchit les décomptes
 
@@ -549,14 +611,15 @@
     upstream_error: "Incident temporaire. Réessayez."
   };
 
-  function applyAI(data) {
+  function applyAI(asset, data) {
     if (!data || typeof data !== "object") throw { code: "invalid_json" };
-    renderSynth(data);
+    var s = STATE[asset];
+    s.synth = data;
 
     var byId = {};
     (data.evenements || []).forEach(function (a) { if (a && a.id) byId[a.id] = a; });
 
-    baseEvents.forEach(function (e) {
+    s.events.forEach(function (e) {
       var a = byId[e.id];
       if (a) {
         e.biais = normBiais(a.biais);
@@ -570,7 +633,7 @@
     });
 
     // événements proposés par l'IA (id préfixé "ia-")
-    aiEvents = (data.evenements || [])
+    s.ai = (data.evenements || [])
       .filter(function (a) { return a && /^ia-/.test(String(a.id)) && a.iso; })
       .map(function (a) {
         return {
@@ -583,30 +646,31 @@
       })
       .filter(function (e) { return !isNaN(e.ts.getTime()); });
 
-    render();
+    if (asset === current) { renderSynth(data); render(); }
   }
   function normBiais(v) {
     v = String(v || "").toLowerCase();
     return (v === "hausse" || v === "baisse" || v === "neutre") ? v : null;
   }
 
-  function buildPrompt() {
-    var payload = baseEvents.map(function (e) {
+  function buildPrompt(asset) {
+    var meta = ASSET[asset];
+    var payload = STATE[asset].events.map(function (e) {
       return { id: e.id, iso: e.ts.toISOString(), titre: e.titre, categorie: e.cat };
     });
     return [
-      "Tu es analyste de marché spécialisé sur le Bitcoin (BTC), orienté événements.",
+      "Tu es analyste de marché spécialisé sur " + meta.nom + ", orienté événements.",
       "Date et heure actuelles : " + new Date().toISOString() + " (UTC).",
       "",
       "Voici une liste d'événements programmés aux dates FIABLES (ne modifie PAS ces dates) :",
       JSON.stringify(payload),
       "",
       "Méthode : le cours réagit à l'ÉCART entre l'annonce et ce qui est déjà anticipé. Appuie-toi sur les",
-      "ATTENTES et RUMEURS de marché connues pour chaque échéance afin d'en déduire un biais directionnel.",
+      "ATTENTES et RUMEURS de marché connues pour chaque échéance afin d'en déduire un biais directionnel pour " + meta.court + ".",
       "",
       "Réponds UNIQUEMENT avec un objet JSON de la forme :",
       '{',
-      '  "biais_global": { "sens": "hausse|baisse|neutre", "ampleur": "±X%", "commentaire": "1-2 phrases sur le biais court terme du BTC" },',
+      '  "biais_global": { "sens": "hausse|baisse|neutre", "ampleur": "±X%", "commentaire": "1-2 phrases sur le biais court terme de ' + meta.court + '" },',
       '  "synthese": [ "phrase 1", "phrase 2", ... ],',
       '  "evenements": [ {',
       '    "id": "...",',
@@ -621,12 +685,13 @@
       '}',
       "",
       "Consignes :",
-      "- biais_global : ton penchant net (hausse/baisse/neutre) pour le BTC à court terme, avec une amplitude et une justification brève. Si tu manques de données récentes, choisis \"neutre\" et dis-le.",
-      "- synthese : 3 à 5 phrases résumant le contexte pertinent (politique monétaire, flux ETF, régulation, technique).",
+      "- Raisonne du point de vue de " + meta.court + " (pas d'un autre actif).",
+      "- biais_global : ton penchant net (hausse/baisse/neutre) pour " + meta.court + " à court terme, avec amplitude et justification brève. Si tu manques de données récentes, choisis \"neutre\" et dis-le.",
+      "- synthese : 3 à 5 phrases résumant le contexte pertinent (" + meta.synthese + ").",
       "- evenements : pour CHAQUE id fourni, renseigne rumeur, scenario_hausse, scenario_baisse, un biais net, l'amplitude estimée en %, la confiance, et volatil=true si l'événement provoque typiquement de fortes secousses.",
       "- biais = le sens le PLUS PROBABLE si les attentes se confirment ; utilise \"neutre\" quand la direction est réellement indécidable.",
       "- confiance = ton degré de certitude sur ce biais (et NON la probabilité d'une hausse).",
-      "- Tu peux AJOUTER d'autres rendez-vous majeurs à venir (emploi US/NFP, PCE, halving, échéances réglementaires, déblocages) : id préfixé \"ia-\" avec en plus \"iso\" (UTC ISO8601), \"titre\", \"categorie\". Uniquement postérieurs à la date actuelle et dont tu es raisonnablement sûr.",
+      "- Tu peux AJOUTER d'autres rendez-vous majeurs à venir (" + meta.ajouts + ") : id préfixé \"ia-\" avec en plus \"iso\" (UTC ISO8601), \"titre\", \"categorie\". Uniquement postérieurs à la date actuelle et dont tu es raisonnablement sûr.",
       "- Sois prudent et factuel ; signale ce qui est incertain au regard de ta date de coupure. Langue : français. Aucune autre sortie que le JSON."
     ].join("\n");
   }
@@ -635,42 +700,73 @@
     stopBtn.onclick = function () { if (ctl) ctl.abort(); };
   }
 
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".asset-tab"));
+  var coin = document.getElementById("coin");
+  var sampleFn = null;
+
+  function refreshButtonState() {
+    if (!sampleFn) return;
+    label.textContent = STATE[current].synth ? "Actualiser la synthèse" : "Générer la synthèse";
+  }
+  function selectAsset(asset) {
+    current = asset;
+    tabs.forEach(function (t) { t.setAttribute("aria-selected", String(t.dataset.asset === asset)); });
+    coin.textContent = ASSET[asset].glyph;
+    coin.className = "coin" + (ASSET[asset].coinClass ? " " + ASSET[asset].coinClass : "");
+    render();
+    renderSynthCurrent();
+    refreshButtonState();
+    if (sampleFn) {
+      status.textContent = STATE[current].synth
+        ? "Synthèse disponible pour " + ASSET[asset].court
+        : "Calendrier chargé · cliquez pour l'analyse IA";
+    }
+  }
+  tabs.forEach(function (t) {
+    t.onclick = function () { if (!t.disabled) selectAsset(t.dataset.asset); };
+  });
+  function setBusyTabs(b) { tabs.forEach(function (t) { t.disabled = b; }); }
+
   (async function init() {
-    var sample = null;
-    try { sample = await claude.use("sample"); } catch (e) { sample = null; }
-    if (!sample) {
+    selectAsset("btc");
+    try { sampleFn = await claude.use("sample"); } catch (e) { sampleFn = null; }
+    if (!sampleFn) {
       btn.disabled = true;
       label.textContent = "Analyse IA indisponible";
       status.textContent = "Ouvrez cette page dans Claude pour activer l'analyse.";
       return;
     }
+    refreshButtonState();
     hookStop();
     btn.onclick = async function () {
+      var asset = current;
       ctl = new AbortController();
-      setBusy(true);
-      status.textContent = "Claude réfléchit (5–60 s)…";
+      setBusy(true); setBusyTabs(true);
+      status.textContent = "Claude analyse " + ASSET[asset].court + " (5–60 s)…";
       document.getElementById("synth-body").innerHTML =
         '<div class="synth-placeholder"><span class="mark">◷</span><span>Analyse en cours…</span></div>';
       try {
-        var data = await sample.json(buildPrompt(), {
+        var data = await sampleFn.json(buildPrompt(asset), {
           modelTier: "default",
           signal: ctl.signal,
           cache: { gcTime: 1800000 }
         });
-        applyAI(data);
-        status.textContent = "Synthèse générée à " + fmtTime.format(new Date()) + " (heure de Paris)";
+        applyAI(asset, data);
+        if (asset === current) {
+          status.textContent = "Synthèse " + ASSET[asset].court + " générée à " + fmtTime.format(new Date()) + " (heure de Paris)";
+        }
       } catch (e) {
         var code = (e && e.code) || "upstream_error";
         if (code === "cancelled") {
           status.textContent = "Analyse interrompue.";
-          document.getElementById("synth-body").innerHTML =
-            '<div class="synth-placeholder"><span class="mark">→</span><span>Analyse interrompue. Relancez quand vous voulez.</span></div>';
-        } else {
+          if (asset === current) renderSynthCurrent();
+        } else if (asset === current) {
           synthError(ERR[code] || ERR.upstream_error);
           status.textContent = "Échec de l'analyse.";
         }
       } finally {
-        setBusy(false);
+        setBusy(false); setBusyTabs(false);
+        refreshButtonState();
       }
     };
   })();
