@@ -1,0 +1,825 @@
+<title>Radar BTC</title>
+<meta name="description" content="Synthèse à la demande des actualités et rendez-vous macro et crypto susceptibles d'influencer le cours du Bitcoin.">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eaedf2;
+    --surface: #ffffff;
+    --surface-2: #f5f7fa;
+    --surface-3: #eef1f6;
+    --ink: #14181f;
+    --ink-soft: #545c6b;
+    --ink-faint: #8a93a2;
+    --line: #dde2ea;
+    --line-strong: #c9d0db;
+    --accent: #f7931a;
+    --accent-strong: #d97c00;
+    --accent-wash: #fdf0dd;
+    --up: #0f9f5f;
+    --up-wash: #e3f6ec;
+    --down: #d6453a;
+    --down-wash: #fce6e4;
+    --vol: #c98a00;
+    --vol-wash: #fbf0d6;
+    --neutral: #6b7280;
+    --neutral-wash: #eceef2;
+    --shadow: 0 1px 2px rgba(20,24,31,.05), 0 8px 24px -12px rgba(20,24,31,.18);
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --display: "Archivo", var(--sans);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      color-scheme: dark;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c0f15;
+      --surface: #151a22;
+      --surface-2: #1a212b;
+      --surface-3: #212a36;
+      --ink: #e8ecf3;
+      --ink-soft: #a3acbb;
+      --ink-faint: #6f7888;
+      --line: #252d3a;
+      --line-strong: #323c4c;
+      --accent: #f7a53a;
+      --accent-strong: #f7931a;
+      --accent-wash: #2a2014;
+      --up: #35c882;
+      --up-wash: #132a20;
+      --down: #ff6f62;
+      --down-wash: #2e1816;
+      --vol: #f5bc45;
+      --vol-wash: #2c2412;
+      --neutral: #8b93a3;
+      --neutral-wash: #222933;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0c0f15;
+    --surface: #151a22;
+    --surface-2: #1a212b;
+    --surface-3: #212a36;
+    --ink: #e8ecf3;
+    --ink-soft: #a3acbb;
+    --ink-faint: #6f7888;
+    --line: #252d3a;
+    --line-strong: #323c4c;
+    --accent: #f7a53a;
+    --accent-strong: #f7931a;
+    --accent-wash: #2a2014;
+    --up: #35c882;
+    --up-wash: #132a20;
+    --down: #ff6f62;
+    --down-wash: #2e1816;
+    --vol: #f5bc45;
+    --vol-wash: #2c2412;
+    --neutral: #8b93a3;
+    --neutral-wash: #222933;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding-block: 28px 64px;
+    padding-inline: 20px;
+  }
+
+  /* ---- Header ---- */
+  .masthead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px 24px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .coin {
+    width: 46px; height: 46px; flex: none;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ffc878 0%, var(--accent) 46%, var(--accent-strong) 100%);
+    display: grid; place-items: center;
+    color: #fff;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 24px;
+    box-shadow: 0 4px 14px -4px rgba(217,124,0,.6);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(26px, 4vw, 34px);
+    letter-spacing: -.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .tagline { margin: 2px 0 0; color: var(--ink-soft); font-size: 13.5px; }
+  .actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .btn {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 14.5px;
+    color: #fff;
+    background: var(--accent-strong);
+    border: none;
+    border-radius: 10px;
+    padding: 11px 20px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 9px;
+    box-shadow: 0 6px 18px -8px rgba(217,124,0,.8);
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .55; cursor: default; box-shadow: none; filter: none; }
+  .btn .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #fff;
+  }
+  .btn.busy .dot { animation: pulse 1s ease-in-out infinite; }
+  .btn-ghost {
+    background: none; color: var(--ink-soft); box-shadow: none;
+    border: 1px solid var(--line-strong); padding: 8px 14px; font-size: 13px;
+  }
+  .btn-ghost:hover { filter: none; color: var(--ink); border-color: var(--ink-faint); }
+  .meta-line { font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+  @media (prefers-reduced-motion: reduce) { .btn.busy .dot { animation: none; } }
+
+  .coin.or { background: radial-gradient(circle at 34% 30%, #ffe9a8 0%, #e6b93f 46%, #a9791a 100%); box-shadow: 0 4px 14px -4px rgba(169,121,26,.6); }
+  .coin.sp { background: radial-gradient(circle at 34% 30%, #9fd6ff 0%, #3b82c4 46%, #1f4e79 100%); box-shadow: 0 4px 14px -4px rgba(31,78,121,.6); font-size: 16px; letter-spacing: -.5px; }
+
+  /* ---- Sélecteur d'actif ---- */
+  .asset-tabs {
+    display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 22px; padding: 4px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .asset-tab {
+    font-family: var(--sans); font-weight: 600; font-size: 14px; color: var(--ink-soft);
+    background: none; border: none; border-radius: 9px; padding: 8px 18px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .asset-tab .g { font-family: var(--display); font-weight: 800; }
+  .asset-tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .asset-tab:disabled { cursor: default; opacity: .55; }
+
+  /* ---- Synthèse ---- */
+  .synth {
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .synth-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent-strong);
+  }
+  .synth-body { padding: 18px 20px; }
+  .synth-placeholder { color: var(--ink-soft); font-size: 14px; display: flex; gap: 12px; align-items: flex-start; }
+  .synth-placeholder .mark { color: var(--accent); font-size: 20px; line-height: 1.2; }
+  .synth-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .synth-list li {
+    display: grid; grid-template-columns: 18px 1fr; gap: 12px;
+    font-size: 14.5px; color: var(--ink); max-width: 72ch;
+  }
+  .synth-list li::before {
+    content: ""; width: 7px; height: 7px; margin-top: 8px;
+    border-radius: 2px; background: var(--accent); transform: rotate(45deg);
+  }
+  .err { color: var(--down); font-size: 13.5px; }
+
+  /* ---- Timeline ---- */
+  .section-title {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    margin: 36px 2px 4px;
+  }
+  .section-title h2 {
+    font-family: var(--display); font-weight: 700; font-size: 19px;
+    letter-spacing: -.01em; margin: 0;
+  }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-soft); font-family: var(--mono); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+  .events { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .event {
+    position: relative;
+    display: grid;
+    grid-template-columns: 116px 1fr 190px;
+    gap: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--neutral);
+    border-radius: 14px;
+    padding: 16px 18px 16px 16px;
+    box-shadow: var(--shadow);
+  }
+  .event[data-effet="hausse"] { border-left-color: var(--up); }
+  .event[data-effet="baisse"] { border-left-color: var(--down); }
+  .event[data-effet="volatil"] { border-left-color: var(--vol); }
+  .event[data-effet="neutre"] { border-left-color: var(--neutral); }
+
+  .when { font-family: var(--mono); }
+  .when .d { font-size: 12px; color: var(--ink-soft); text-transform: capitalize; }
+  .when .t { font-size: 21px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .when .cd { font-size: 11.5px; color: var(--accent-strong); margin-top: 3px; }
+
+  .mid { min-width: 0; }
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 6px; }
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    background: var(--surface-3); color: var(--ink-soft);
+    border: 1px solid var(--line);
+  }
+  .chip.verify { background: var(--accent-wash); color: var(--accent-strong); border-color: transparent; }
+  .event h3 { font-size: 15.5px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.005em; }
+  .event p { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 60ch; }
+
+  .verdict { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--sans); font-weight: 600; font-size: 12.5px;
+    padding: 5px 11px; border-radius: 8px;
+    background: var(--neutral-wash); color: var(--neutral);
+  }
+  .badge .arw { font-size: 13px; line-height: 1; }
+  .badge[data-effet="hausse"] { background: var(--up-wash); color: var(--up); }
+  .badge[data-effet="baisse"] { background: var(--down-wash); color: var(--down); }
+  .badge[data-effet="volatil"] { background: var(--vol-wash); color: var(--vol); }
+  .badge.pending { background: var(--surface-3); color: var(--ink-faint); font-weight: 500; }
+  .metrics { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); display: flex; flex-direction: column; gap: 2px; }
+  .metrics b { color: var(--ink); font-weight: 600; }
+  .commentary { font-size: 12.5px; color: var(--ink-soft); font-style: italic; max-width: 26ch; }
+
+  .chip.vol { background: var(--vol-wash); color: var(--vol); border-color: transparent; }
+  .rumeur { margin: 2px 0 8px; font-size: 13px; color: var(--ink-soft); max-width: 62ch; }
+  .rumeur .tag-r {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--accent-strong); margin-right: 6px;
+  }
+  .scenarios { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+  .sc { display: grid; grid-template-columns: 16px 1fr; gap: 7px; font-size: 12.5px; color: var(--ink-soft); max-width: 62ch; }
+  .sc .arw { font-size: 11px; line-height: 1.4; }
+  .sc.up .arw { color: var(--up); }
+  .sc.down .arw { color: var(--down); }
+
+  /* ---- Biais général ---- */
+  .bias-banner {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 16px; margin-bottom: 16px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--neutral);
+  }
+  .bias-banner[data-effet="hausse"] { border-left-color: var(--up); background: var(--up-wash); }
+  .bias-banner[data-effet="baisse"] { border-left-color: var(--down); background: var(--down-wash); }
+  .bias-banner[data-effet="volatil"] { border-left-color: var(--vol); background: var(--vol-wash); }
+  .bias-banner .verdict-big {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--display); font-weight: 700; font-size: 18px; flex: none;
+  }
+  .bias-banner .verdict-big .arw { font-size: 18px; }
+  .bias-banner[data-effet="hausse"] .verdict-big { color: var(--up); }
+  .bias-banner[data-effet="baisse"] .verdict-big { color: var(--down); }
+  .bias-banner[data-effet="volatil"] .verdict-big { color: var(--vol); }
+  .bias-banner[data-effet="neutre"] .verdict-big { color: var(--neutral); }
+  .bias-banner .bias-txt { font-size: 13.5px; color: var(--ink); min-width: 200px; flex: 1; }
+  .bias-banner .bias-amp { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+
+  /* ---- Disclaimer ---- */
+  .disclaimer {
+    margin-top: 30px;
+    font-size: 12px; line-height: 1.6; color: var(--ink-faint);
+    border-top: 1px dashed var(--line-strong);
+    padding-top: 16px;
+    max-width: 78ch;
+  }
+  .disclaimer b { color: var(--ink-soft); }
+
+  @media (max-width: 720px) {
+    .event { grid-template-columns: 92px 1fr; }
+    .verdict { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .commentary { max-width: none; }
+    .actions { align-items: flex-start; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <div class="coin" id="coin">₿</div>
+      <div>
+        <h1>Radar BTC · Or</h1>
+        <p class="tagline">Rendez-vous macro à surveiller pour le Bitcoin et l'or — attentes du marché, scénarios de hausse et de baisse, biais anticipé. Horaires en heure française.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="gen">
+        <span class="dot"></span>
+        <span id="gen-label">Générer la synthèse</span>
+      </button>
+      <button class="btn btn-ghost" id="stop" hidden>Arrêter</button>
+      <span class="meta-line" id="status">Calendrier chargé · cliquez pour l'analyse IA</span>
+    </div>
+  </header>
+
+  <div class="asset-tabs" role="tablist" aria-label="Choix de l'actif">
+    <button class="asset-tab" role="tab" data-asset="btc" aria-selected="true"><span class="g">₿</span> Bitcoin</button>
+    <button class="asset-tab" role="tab" data-asset="or" aria-selected="false"><span class="g">Au</span> Or</button>
+    <button class="asset-tab" role="tab" data-asset="sp500" aria-selected="false"><span class="g">500</span> S&amp;P 500</button>
+  </div>
+
+  <section class="synth" aria-live="polite">
+    <div class="synth-head">
+      <span class="eyebrow">Synthèse de marché</span>
+    </div>
+    <div class="synth-body" id="synth-body">
+      <div class="synth-placeholder">
+        <span class="mark">→</span>
+        <span>Lancez <b>« Générer la synthèse »</b> : à partir des attentes et rumeurs de marché, Claude estime pour chaque rendez-vous le <b>scénario de hausse</b>, le <b>scénario de baisse</b> et le <b>biais net anticipé</b>, puis en déduit un biais général court terme. Sans lancer l'analyse, seul le calendrier des dates fiables est affiché.</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-title">
+    <h2>Rendez-vous à venir</h2>
+    <div class="legend">
+      <span><i style="background:var(--up)"></i> Biais haussier</span>
+      <span><i style="background:var(--down)"></i> Biais baissier</span>
+      <span><i style="background:var(--neutral)"></i> Neutre / incertain</span>
+    </div>
+  </div>
+  <div class="events" id="events"></div>
+
+  <p class="disclaimer">
+    <b>Portée et limites.</b> Les <b>dates et horaires</b> des événements macro (Fed/FOMC, inflation CPI) et des échéances sur dérivés (options crypto, options et <i>triple witching</i> sur indices) sont issus des calendriers officiels publiés à l'avance et convertis automatiquement en heure de Paris. Les <b>attentes et rumeurs</b>, les <b>scénarios</b>, le <b>biais anticipé</b>, l'<b>amplitude</b> et la <b>synthèse</b> sont générés par Claude au moment où vous cliquez : ils reflètent sa base de connaissances (qui comporte une date de coupure) et non des données de marché en direct. Les rumeurs de marché sont par nature invérifiables et parfois fausses ; un artefact ne peut pas interroger le web ni afficher le cours en temps réel. Le biais indiqué décrit le penchant le plus probable <b>si les attentes se confirment</b> — la direction réelle dépend de l'écart avec ce qui est déjà intégré au cours. Ces éléments sont <b>indicatifs</b> et ne constituent pas un conseil en investissement. Vérifiez les événements marqués « IA · à vérifier » auprès d'une source officielle.
+  </p>
+</div>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Calendrier ancré (dates fiables, horodatage UTC absolu) ----
+  // L'heure française est calculée par Intl (fuseau Europe/Paris), ce qui gère
+  // correctement les changements d'heure d'été/hiver.
+  // Rendez-vous macro communs au Bitcoin et à l'or (mêmes dates, lectures différentes).
+  var MACRO = [
+    { id: "ecb-10",  iso: "2026-10-29T13:15:00Z", kind: "ecb",  cat: "Banque centrale", titre: "Décision de taux de la BCE" },
+    { id: "fomc-10", iso: "2026-10-28T18:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC)" },
+    { id: "nfp-10",  iso: "2026-11-06T13:30:00Z", kind: "nfp",  cat: "Macro US",        titre: "Emploi US (NFP) — données d'octobre" },
+    { id: "cpi-10",  iso: "2026-11-10T13:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données d'octobre" },
+    { id: "nfp-11",  iso: "2026-12-04T13:30:00Z", kind: "nfp",  cat: "Macro US",        titre: "Emploi US (NFP) — données de novembre" },
+    { id: "fomc-12", iso: "2026-12-09T19:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC) + projections" },
+    { id: "cpi-11",  iso: "2026-12-10T13:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données de novembre" },
+    { id: "ecb-12",  iso: "2026-12-17T13:15:00Z", kind: "ecb",  cat: "Banque centrale", titre: "Décision de taux de la BCE" }
+  ];
+
+  // Lecture propre à chaque actif d'un même rendez-vous macro.
+  var NOTES = {
+    btc: {
+      cpi: "Publication à 8h30 ET. Une inflation plus forte qu'attendu tend à peser sur le BTC (Fed plus restrictive) ; plus faible, à le soutenir.",
+      fomc: "Décision à 14h ET, conférence à 14h30. Forte volatilité. Un ton accommodant est généralement porteur pour le BTC, un ton restrictif défavorable.",
+      nfp: "Rapport sur l'emploi US à 8h30 ET. Un marché du travail plus solide qu'attendu renforce le dollar et les taux (plutôt défavorable au BTC) ; plus faible, l'inverse.",
+      ecb: "Décision de la BCE à 14h15 (Paris), conférence à 14h45. Impact surtout indirect sur le BTC, via l'euro/dollar et l'appétit pour le risque."
+    },
+    or: {
+      cpi: "Publication à 8h30 ET. Effet ambigu pour l'or : couverture contre l'inflation, mais un chiffre fort renforce le dollar et les taux réels (souvent baissier à court terme).",
+      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (taux réels plus bas, dollar plus faible) est habituellement haussier pour l'or ; un ton restrictif, baissier.",
+      nfp: "Rapport sur l'emploi US à 8h30 ET. Un emploi fort soutient le dollar et les taux réels (baissier pour l'or) ; un emploi faible est généralement porteur.",
+      ecb: "Décision de la BCE à 14h15 (Paris). Effet net sur l'or surtout via les taux réels mondiaux et le dollar ; un euro affaibli peut peser à la marge."
+    },
+    sp500: {
+      cpi: "Publication à 8h30 ET. Une inflation plus forte qu'attendu pèse généralement sur les actions (taux plus hauts, valorisations sous pression) ; plus faible, elle les soutient.",
+      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (baisse de taux, liquidité) est habituellement porteur pour le S&P 500 ; un ton restrictif, défavorable.",
+      nfp: "Rapport sur l'emploi US à 8h30 ET. Trop fort, il fait craindre des taux élevés (pression sur les actions) ; trop faible, il ravive les craintes de récession. Un atterrissage en douceur est idéal.",
+      ecb: "Décision de la BCE à 14h15 (Paris). Influence les actions européennes et, par ricochet, le sentiment de risque sur le S&P 500."
+    }
+  };
+
+  // Métadonnées par actif (libellés, glyphe, cadrage de l'analyse).
+  var ASSET = {
+    btc: { nom: "le Bitcoin (BTC)", court: "le BTC", glyph: "₿", coinClass: "",
+           synthese: "politique monétaire, flux des ETF, régulation, positionnement technique",
+           ajouts: "emploi US (NFP), PCE, halving, échéances réglementaires, déblocages de jetons" },
+    or:  { nom: "l'or (XAU/USD)", court: "l'or", glyph: "Au", coinClass: "or",
+           synthese: "politique monétaire, taux d'intérêt réels, dollar (DXY), achats des banques centrales, tensions géopolitiques, demande de valeur refuge",
+           ajouts: "emploi US (NFP), PCE, réunions de la BCE, échéances d'options COMEX sur l'or" },
+    sp500: { nom: "l'indice S&P 500", court: "le S&P 500", glyph: "500", coinClass: "sp",
+           synthese: "politique monétaire, rendement du 10 ans US, résultats d'entreprises (earnings), méga-capitalisations technologiques, données d'emploi, risque géopolitique",
+           ajouts: "emploi US (NFP), PCE, saison des résultats (grandes capitalisations), réunions de la BCE" }
+  };
+
+  // ---- Échéances mensuelles d'options BTC : dernier vendredi du mois, 08h00 UTC ----
+  function lastFridayUTC(year, month) { // month 0-11
+    var d = new Date(Date.UTC(year, month + 1, 0, 8, 0, 0)); // dernier jour du mois, 08:00 UTC
+    while (d.getUTCDay() !== 5) { d.setUTCDate(d.getUTCDate() - 1); }
+    return d;
+  }
+  function buildExpiries() {
+    var now = new Date(), out = [];
+    for (var i = 0; i < 4; i++) {
+      var ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+      var y = ref.getUTCFullYear(), m = ref.getUTCMonth();
+      var d = lastFridayUTC(y, m);
+      var quarter = (m === 2 || m === 5 || m === 8 || m === 11); // mars/juin/sept/déc
+      out.push({
+        id: "exp-" + y + "-" + m,
+        iso: d.toISOString(),
+        titre: "Échéance des options Bitcoin" + (quarter ? " (trimestrielle)" : " (mensuelle)"),
+        cat: "Dérivés crypto",
+        note: quarter
+          ? "Expiration trimestrielle (CME/Deribit) à 8h UTC : volumes élevés, mouvements possibles autour du « max pain »."
+          : "Expiration mensuelle (CME/Deribit) à 8h UTC : pics de volatilité fréquents à l'approche puis après le fixing."
+      });
+    }
+    return out;
+  }
+
+  // ---- Échéances S&P 500 : 3e vendredi du mois, clôture 16h00 ET ----
+  function thirdFriday(year, month) { // month 0-11 → jour du mois
+    var day = new Date(Date.UTC(year, month, 1)).getUTCDay();
+    var firstFri = 1 + ((5 - day + 7) % 7);
+    return firstFri + 14;
+  }
+  function etToUTC(year, month, dom, hourET) {
+    // Approximation valable pour un 3e vendredi : EDT (UTC-4) de mars à octobre, EST (UTC-5) sinon.
+    var offset = (month >= 2 && month <= 9) ? 4 : 5;
+    return new Date(Date.UTC(year, month, dom, hourET + offset, 0, 0));
+  }
+  function buildIndexExpiries() {
+    var now = new Date(), out = [];
+    for (var i = 0; i < 4; i++) {
+      var ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+      var y = ref.getUTCFullYear(), m = ref.getUTCMonth();
+      var d = etToUTC(y, m, thirdFriday(y, m), 16);
+      var triple = (m === 2 || m === 5 || m === 8 || m === 11); // mars/juin/sept/déc
+      out.push({
+        id: "opex-" + y + "-" + m,
+        iso: d.toISOString(),
+        titre: triple ? "Triple witching (échéance trimestrielle)" : "Expiration mensuelle des options (OpEx)",
+        cat: "Dérivés indices",
+        note: triple
+          ? "Expiration simultanée des futures et options sur indices et actions (clôture 16h ET) : volumes très élevés et volatilité marquée."
+          : "Expiration mensuelle des options (3e vendredi, clôture 16h ET) : regain de volatilité et effets de positionnement (gamma)."
+      });
+    }
+    return out;
+  }
+
+  function mkEvent(id, iso, titre, cat, note) {
+    return {
+      id: id, ts: new Date(iso), titre: titre, cat: cat, note: note,
+      source: "base", biais: null, ampleur: null, confiance: null,
+      rumeur: null, scenarioH: null, scenarioB: null, volatil: false
+    };
+  }
+  function buildBase(asset) {
+    var list = MACRO.map(function (e) {
+      return mkEvent(e.id, e.iso, e.titre, e.cat, NOTES[asset][e.kind]);
+    });
+    if (asset === "btc") {
+      buildExpiries().forEach(function (e) { list.push(mkEvent(e.id, e.iso, e.titre, e.cat, e.note)); });
+    } else if (asset === "sp500") {
+      buildIndexExpiries().forEach(function (e) { list.push(mkEvent(e.id, e.iso, e.titre, e.cat, e.note)); });
+    }
+    return list;
+  }
+
+  // ---- État (par actif) ----
+  var STATE = {
+    btc:   { events: buildBase("btc"),   ai: [], synth: null },
+    or:    { events: buildBase("or"),    ai: [], synth: null },
+    sp500: { events: buildBase("sp500"), ai: [], synth: null }
+  };
+  var current = "btc";
+
+  // ---- Formatage ----
+  var fmtDate = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
+  var fmtTime = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  var ARROW = { hausse: "▲", baisse: "▼", volatil: "◆", neutre: "—" };
+  var LABEL = { hausse: "Haussier", baisse: "Baissier", volatil: "Volatil", neutre: "Neutre" };
+
+  function countdown(ts) {
+    var ms = ts.getTime() - Date.now();
+    if (ms < 0) return "en cours / passé";
+    var h = Math.floor(ms / 3.6e6);
+    if (h < 1) return "dans < 1 h";
+    if (h < 24) return "dans " + h + " h";
+    var dys = Math.floor(h / 24);
+    return "dans " + dys + " j";
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function allEvents() {
+    var s = STATE[current];
+    return s.events.concat(s.ai)
+      .filter(function (e) { return e.ts.getTime() >= Date.now() - 6 * 3.6e6; })
+      .sort(function (a, b) { return a.ts - b.ts; });
+  }
+
+  function render() {
+    var host = document.getElementById("events");
+    var list = allEvents();
+    if (!list.length) { host.innerHTML = '<p class="err">Aucun rendez-vous à venir dans le calendrier ancré. Lancez l\'analyse pour que Claude propose les prochaines échéances connues.</p>'; return; }
+    host.innerHTML = list.map(function (e) {
+      var biais = e.biais || null;
+      var verify = e.source === "ai" ? '<span class="chip verify">IA · à vérifier</span>' : "";
+      var volTag = e.volatil ? '<span class="chip vol">volatilité élevée</span>' : "";
+
+      var mid =
+        '<div class="chips"><span class="chip">' + esc(e.cat) + '</span>' + volTag + verify + '</div>' +
+        '<h3>' + esc(e.titre) + '</h3>';
+      if (e.rumeur) {
+        mid += '<p class="rumeur"><span class="tag-r">Attentes / rumeurs</span>' + esc(e.rumeur) + '</p>';
+      }
+      if (biais && (e.scenarioH || e.scenarioB)) {
+        mid += '<div class="scenarios">' +
+          (e.scenarioH ? '<div class="sc up"><span class="arw">▲</span><span>' + esc(e.scenarioH) + '</span></div>' : '') +
+          (e.scenarioB ? '<div class="sc down"><span class="arw">▼</span><span>' + esc(e.scenarioB) + '</span></div>' : '') +
+          '</div>';
+      } else if (!biais) {
+        mid += '<p>' + esc(e.note || "") + '</p>';
+      }
+
+      var verdict;
+      if (biais) {
+        verdict =
+          '<span class="badge" data-effet="' + biais + '"><span class="arw">' + ARROW[biais] + '</span>' + LABEL[biais] + '</span>' +
+          '<span class="metrics">' +
+            (e.ampleur ? 'Amplitude <b>' + esc(e.ampleur) + '</b>' : '') +
+            (e.confiance ? '<span>Confiance : ' + esc(e.confiance) + '</span>' : '') +
+          '</span>';
+      } else {
+        verdict = '<span class="badge pending">Biais à générer</span>';
+      }
+
+      return '<article class="event" data-effet="' + (biais || "neutre") + '">' +
+        '<div class="when">' +
+          '<div class="d">' + esc(fmtDate.format(e.ts)) + '</div>' +
+          '<div class="t">' + esc(fmtTime.format(e.ts)) + '</div>' +
+          '<div class="cd">' + esc(countdown(e.ts)) + '</div>' +
+        '</div>' +
+        '<div class="mid">' + mid + '</div>' +
+        '<div class="verdict">' + verdict + '</div>' +
+      '</article>';
+    }).join("");
+  }
+
+  function renderSynth(data) {
+    var body = document.getElementById("synth-body");
+    var html = "";
+
+    var bg = data.biais_global || null;
+    if (bg) {
+      var sens = normBiais(bg.sens) || "neutre";
+      var lib = { hausse: "Biais haussier", baisse: "Biais baissier", neutre: "Biais neutre / incertain" }[sens];
+      html += '<div class="bias-banner" data-effet="' + sens + '">' +
+        '<span class="verdict-big"><span class="arw">' + ARROW[sens] + '</span>' + lib + '</span>' +
+        '<span class="bias-txt">' + esc(bg.commentaire || "") + '</span>' +
+        (bg.ampleur ? '<span class="bias-amp">' + esc(bg.ampleur) + '</span>' : '') +
+        '</div>';
+    }
+
+    var items = data.synthese || [];
+    if (items.length) {
+      html += '<ul class="synth-list">' +
+        items.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join("") + '</ul>';
+    }
+    if (html) body.innerHTML = html;
+  }
+  function synthError(msg) {
+    document.getElementById("synth-body").innerHTML = '<p class="err">' + esc(msg) + '</p>';
+  }
+
+  var PLACEHOLDER =
+    '<div class="synth-placeholder"><span class="mark">→</span><span>Lancez <b>« Générer la synthèse »</b> : à partir des attentes et rumeurs de marché, Claude estime pour chaque rendez-vous le <b>scénario de hausse</b>, le <b>scénario de baisse</b> et le <b>biais net anticipé</b>, puis en déduit un biais général court terme. Sans lancer l\'analyse, seul le calendrier des dates fiables est affiché.</span></div>';
+
+  function renderSynthCurrent() {
+    var s = STATE[current];
+    if (s.synth) { renderSynth(s.synth); }
+    else { document.getElementById("synth-body").innerHTML = PLACEHOLDER; }
+  }
+
+  render();
+  setInterval(render, 60000); // rafraîchit les décomptes
+
+  // ---- Intégration Claude (capacité sample) ----
+  var btn = document.getElementById("gen");
+  var stopBtn = document.getElementById("stop");
+  var status = document.getElementById("status");
+  var label = document.getElementById("gen-label");
+  var ctl = null;
+
+  function setBusy(b) {
+    btn.classList.toggle("busy", b);
+    btn.disabled = b;
+    stopBtn.hidden = !b;
+    label.textContent = b ? "Analyse en cours…" : "Actualiser la synthèse";
+  }
+
+  var ERR = {
+    not_granted: "Accès à Claude refusé pour cet artefact. Le calendrier reste disponible.",
+    sampling_disabled: "L'analyse par Claude n'est pas disponible sur ce compte.",
+    rate_limited: "Trop de requêtes. Réessayez dans quelques instants.",
+    session_expired: "Session expirée : reconnectez-vous puis réessayez.",
+    refused: "Claude n'a pas pu traiter cette demande.",
+    invalid_json: "Réponse illisible. Réessayez.",
+    prompt_too_large: "Requête trop volumineuse.",
+    upstream_error: "Incident temporaire. Réessayez."
+  };
+
+  function applyAI(asset, data) {
+    if (!data || typeof data !== "object") throw { code: "invalid_json" };
+    var s = STATE[asset];
+    s.synth = data;
+
+    var byId = {};
+    (data.evenements || []).forEach(function (a) { if (a && a.id) byId[a.id] = a; });
+
+    s.events.forEach(function (e) {
+      var a = byId[e.id];
+      if (a) {
+        e.biais = normBiais(a.biais);
+        e.ampleur = a.ampleur || null;
+        e.confiance = a.confiance || null;
+        e.rumeur = a.rumeur || null;
+        e.scenarioH = a.scenario_hausse || null;
+        e.scenarioB = a.scenario_baisse || null;
+        e.volatil = !!a.volatil;
+      }
+    });
+
+    // événements proposés par l'IA (id préfixé "ia-")
+    s.ai = (data.evenements || [])
+      .filter(function (a) { return a && /^ia-/.test(String(a.id)) && a.iso; })
+      .map(function (a) {
+        return {
+          id: a.id, ts: new Date(a.iso), titre: a.titre || "Événement", cat: a.categorie || "IA",
+          note: "", source: "ai",
+          biais: normBiais(a.biais), ampleur: a.ampleur || null, confiance: a.confiance || null,
+          rumeur: a.rumeur || null, scenarioH: a.scenario_hausse || null,
+          scenarioB: a.scenario_baisse || null, volatil: !!a.volatil
+        };
+      })
+      .filter(function (e) { return !isNaN(e.ts.getTime()); });
+
+    if (asset === current) { renderSynth(data); render(); }
+  }
+  function normBiais(v) {
+    v = String(v || "").toLowerCase();
+    return (v === "hausse" || v === "baisse" || v === "neutre") ? v : null;
+  }
+
+  function buildPrompt(asset) {
+    var meta = ASSET[asset];
+    var payload = STATE[asset].events.map(function (e) {
+      return { id: e.id, iso: e.ts.toISOString(), titre: e.titre, categorie: e.cat };
+    });
+    return [
+      "Tu es analyste de marché spécialisé sur " + meta.nom + ", orienté événements.",
+      "Date et heure actuelles : " + new Date().toISOString() + " (UTC).",
+      "",
+      "Voici une liste d'événements programmés aux dates FIABLES (ne modifie PAS ces dates) :",
+      JSON.stringify(payload),
+      "",
+      "Méthode : le cours réagit à l'ÉCART entre l'annonce et ce qui est déjà anticipé. Appuie-toi sur les",
+      "ATTENTES et RUMEURS de marché connues pour chaque échéance afin d'en déduire un biais directionnel pour " + meta.court + ".",
+      "",
+      "Réponds UNIQUEMENT avec un objet JSON de la forme :",
+      '{',
+      '  "biais_global": { "sens": "hausse|baisse|neutre", "ampleur": "±X%", "commentaire": "1-2 phrases sur le biais court terme de ' + meta.court + '" },',
+      '  "synthese": [ "phrase 1", "phrase 2", ... ],',
+      '  "evenements": [ {',
+      '    "id": "...",',
+      '    "rumeur": "ce qui est anticipé / se dit sur cette échéance",',
+      '    "scenario_hausse": "condition qui ferait MONTER le cours",',
+      '    "scenario_baisse": "condition qui ferait BAISSER le cours",',
+      '    "biais": "hausse|baisse|neutre",',
+      '    "ampleur": "±2–4%",',
+      '    "confiance": "faible|moyenne|élevée",',
+      '    "volatil": true',
+      '  } ]',
+      '}',
+      "",
+      "Consignes :",
+      "- Raisonne du point de vue de " + meta.court + " (pas d'un autre actif).",
+      "- biais_global : ton penchant net (hausse/baisse/neutre) pour " + meta.court + " à court terme, avec amplitude et justification brève. Si tu manques de données récentes, choisis \"neutre\" et dis-le.",
+      "- synthese : 3 à 5 phrases résumant le contexte pertinent (" + meta.synthese + ").",
+      "- evenements : pour CHAQUE id fourni, renseigne rumeur, scenario_hausse, scenario_baisse, un biais net, l'amplitude estimée en %, la confiance, et volatil=true si l'événement provoque typiquement de fortes secousses.",
+      "- biais = le sens le PLUS PROBABLE si les attentes se confirment ; utilise \"neutre\" quand la direction est réellement indécidable.",
+      "- confiance = ton degré de certitude sur ce biais (et NON la probabilité d'une hausse).",
+      "- Tu peux AJOUTER d'autres rendez-vous majeurs à venir (" + meta.ajouts + ") : id préfixé \"ia-\" avec en plus \"iso\" (UTC ISO8601), \"titre\", \"categorie\". Uniquement postérieurs à la date actuelle et dont tu es raisonnablement sûr.",
+      "- Sois prudent et factuel ; signale ce qui est incertain au regard de ta date de coupure. Langue : français. Aucune autre sortie que le JSON."
+    ].join("\n");
+  }
+
+  function hookStop() {
+    stopBtn.onclick = function () { if (ctl) ctl.abort(); };
+  }
+
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".asset-tab"));
+  var coin = document.getElementById("coin");
+  var sampleFn = null;
+
+  function refreshButtonState() {
+    if (!sampleFn) return;
+    label.textContent = STATE[current].synth ? "Actualiser la synthèse" : "Générer la synthèse";
+  }
+  function selectAsset(asset) {
+    current = asset;
+    tabs.forEach(function (t) { t.setAttribute("aria-selected", String(t.dataset.asset === asset)); });
+    coin.textContent = ASSET[asset].glyph;
+    coin.className = "coin" + (ASSET[asset].coinClass ? " " + ASSET[asset].coinClass : "");
+    render();
+    renderSynthCurrent();
+    refreshButtonState();
+    if (sampleFn) {
+      status.textContent = STATE[current].synth
+        ? "Synthèse disponible pour " + ASSET[asset].court
+        : "Calendrier chargé · cliquez pour l'analyse IA";
+    }
+  }
+  tabs.forEach(function (t) {
+    t.onclick = function () { if (!t.disabled) selectAsset(t.dataset.asset); };
+  });
+  function setBusyTabs(b) { tabs.forEach(function (t) { t.disabled = b; }); }
+
+  (async function init() {
+    selectAsset("btc");
+    try { sampleFn = await claude.use("sample"); } catch (e) { sampleFn = null; }
+    if (!sampleFn) {
+      btn.disabled = true;
+      label.textContent = "Analyse IA indisponible";
+      status.textContent = "Ouvrez cette page dans Claude pour activer l'analyse.";
+      return;
+    }
+    refreshButtonState();
+    hookStop();
+    btn.onclick = async function () {
+      var asset = current;
+      ctl = new AbortController();
+      setBusy(true); setBusyTabs(true);
+      status.textContent = "Claude analyse " + ASSET[asset].court + " (5–60 s)…";
+      document.getElementById("synth-body").innerHTML =
+        '<div class="synth-placeholder"><span class="mark">◷</span><span>Analyse en cours…</span></div>';
+      try {
+        var data = await sampleFn.json(buildPrompt(asset), {
+          modelTier: "default",
+          signal: ctl.signal,
+          cache: { gcTime: 1800000 }
+        });
+        applyAI(asset, data);
+        if (asset === current) {
+          status.textContent = "Synthèse " + ASSET[asset].court + " générée à " + fmtTime.format(new Date()) + " (heure de Paris)";
+        }
+      } catch (e) {
+        var code = (e && e.code) || "upstream_error";
+        if (code === "cancelled") {
+          status.textContent = "Analyse interrompue.";
+          if (asset === current) renderSynthCurrent();
+        } else if (asset === current) {
+          synthError(ERR[code] || ERR.upstream_error);
+          status.textContent = "Échec de l'analyse.";
+        }
+      } finally {
+        setBusy(false); setBusyTabs(false);
+        refreshButtonState();
+      }
+    };
+  })();
+})();
+</script>
