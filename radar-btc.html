@@ -397,27 +397,35 @@
   // correctement les changements d'heure d'été/hiver.
   // Rendez-vous macro communs au Bitcoin et à l'or (mêmes dates, lectures différentes).
   var MACRO = [
-    { id: "cpi-08",  iso: "2026-09-11T12:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données d'août" },
-    { id: "fomc-09", iso: "2026-09-16T18:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC) + projections" },
-    { id: "cpi-09",  iso: "2026-10-14T12:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données de septembre" },
+    { id: "ecb-10",  iso: "2026-10-29T13:15:00Z", kind: "ecb",  cat: "Banque centrale", titre: "Décision de taux de la BCE" },
     { id: "fomc-10", iso: "2026-10-28T18:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC)" },
+    { id: "nfp-10",  iso: "2026-11-06T13:30:00Z", kind: "nfp",  cat: "Macro US",        titre: "Emploi US (NFP) — données d'octobre" },
     { id: "cpi-10",  iso: "2026-11-10T13:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données d'octobre" },
-    { id: "fomc-12", iso: "2026-12-09T19:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC) + projections" }
+    { id: "nfp-11",  iso: "2026-12-04T13:30:00Z", kind: "nfp",  cat: "Macro US",        titre: "Emploi US (NFP) — données de novembre" },
+    { id: "fomc-12", iso: "2026-12-09T19:00:00Z", kind: "fomc", cat: "Banque centrale", titre: "Décision de taux de la Fed (FOMC) + projections" },
+    { id: "cpi-11",  iso: "2026-12-10T13:30:00Z", kind: "cpi",  cat: "Macro US",        titre: "Inflation CPI — données de novembre" },
+    { id: "ecb-12",  iso: "2026-12-17T13:15:00Z", kind: "ecb",  cat: "Banque centrale", titre: "Décision de taux de la BCE" }
   ];
 
   // Lecture propre à chaque actif d'un même rendez-vous macro.
   var NOTES = {
     btc: {
       cpi: "Publication à 8h30 ET. Une inflation plus forte qu'attendu tend à peser sur le BTC (Fed plus restrictive) ; plus faible, à le soutenir.",
-      fomc: "Décision à 14h ET, conférence à 14h30. Forte volatilité. Un ton accommodant est généralement porteur pour le BTC, un ton restrictif défavorable."
+      fomc: "Décision à 14h ET, conférence à 14h30. Forte volatilité. Un ton accommodant est généralement porteur pour le BTC, un ton restrictif défavorable.",
+      nfp: "Rapport sur l'emploi US à 8h30 ET. Un marché du travail plus solide qu'attendu renforce le dollar et les taux (plutôt défavorable au BTC) ; plus faible, l'inverse.",
+      ecb: "Décision de la BCE à 14h15 (Paris), conférence à 14h45. Impact surtout indirect sur le BTC, via l'euro/dollar et l'appétit pour le risque."
     },
     or: {
       cpi: "Publication à 8h30 ET. Effet ambigu pour l'or : couverture contre l'inflation, mais un chiffre fort renforce le dollar et les taux réels (souvent baissier à court terme).",
-      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (taux réels plus bas, dollar plus faible) est habituellement haussier pour l'or ; un ton restrictif, baissier."
+      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (taux réels plus bas, dollar plus faible) est habituellement haussier pour l'or ; un ton restrictif, baissier.",
+      nfp: "Rapport sur l'emploi US à 8h30 ET. Un emploi fort soutient le dollar et les taux réels (baissier pour l'or) ; un emploi faible est généralement porteur.",
+      ecb: "Décision de la BCE à 14h15 (Paris). Effet net sur l'or surtout via les taux réels mondiaux et le dollar ; un euro affaibli peut peser à la marge."
     },
     sp500: {
       cpi: "Publication à 8h30 ET. Une inflation plus forte qu'attendu pèse généralement sur les actions (taux plus hauts, valorisations sous pression) ; plus faible, elle les soutient.",
-      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (baisse de taux, liquidité) est habituellement porteur pour le S&P 500 ; un ton restrictif, défavorable."
+      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (baisse de taux, liquidité) est habituellement porteur pour le S&P 500 ; un ton restrictif, défavorable.",
+      nfp: "Rapport sur l'emploi US à 8h30 ET. Trop fort, il fait craindre des taux élevés (pression sur les actions) ; trop faible, il ravive les craintes de récession. Un atterrissage en douceur est idéal.",
+      ecb: "Décision de la BCE à 14h15 (Paris). Influence les actions européennes et, par ricochet, le sentiment de risque sur le S&P 500."
     }
   };
 
