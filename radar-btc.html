@@ -161,10 +161,11 @@
   @media (prefers-reduced-motion: reduce) { .btn.busy .dot { animation: none; } }
 
   .coin.or { background: radial-gradient(circle at 34% 30%, #ffe9a8 0%, #e6b93f 46%, #a9791a 100%); box-shadow: 0 4px 14px -4px rgba(169,121,26,.6); }
+  .coin.sp { background: radial-gradient(circle at 34% 30%, #9fd6ff 0%, #3b82c4 46%, #1f4e79 100%); box-shadow: 0 4px 14px -4px rgba(31,78,121,.6); font-size: 16px; letter-spacing: -.5px; }
 
   /* ---- Sélecteur d'actif ---- */
   .asset-tabs {
-    display: inline-flex; gap: 4px; margin-top: 22px; padding: 4px;
+    display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 22px; padding: 4px;
     background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
   }
   .asset-tab {
@@ -353,6 +354,7 @@
   <div class="asset-tabs" role="tablist" aria-label="Choix de l'actif">
     <button class="asset-tab" role="tab" data-asset="btc" aria-selected="true"><span class="g">₿</span> Bitcoin</button>
     <button class="asset-tab" role="tab" data-asset="or" aria-selected="false"><span class="g">Au</span> Or</button>
+    <button class="asset-tab" role="tab" data-asset="sp500" aria-selected="false"><span class="g">500</span> S&amp;P 500</button>
   </div>
 
   <section class="synth" aria-live="polite">
@@ -378,7 +380,7 @@
   <div class="events" id="events"></div>
 
   <p class="disclaimer">
-    <b>Portée et limites.</b> Les <b>dates et horaires</b> des événements macro (Fed/FOMC, inflation CPI) et des échéances d'options sont issus des calendriers officiels publiés à l'avance et convertis automatiquement en heure de Paris. Les <b>attentes et rumeurs</b>, les <b>scénarios</b>, le <b>biais anticipé</b>, l'<b>amplitude</b> et la <b>synthèse</b> sont générés par Claude au moment où vous cliquez : ils reflètent sa base de connaissances (qui comporte une date de coupure) et non des données de marché en direct. Les rumeurs de marché sont par nature invérifiables et parfois fausses ; un artefact ne peut pas interroger le web ni afficher le cours en temps réel. Le biais indiqué décrit le penchant le plus probable <b>si les attentes se confirment</b> — la direction réelle dépend de l'écart avec ce qui est déjà intégré au cours. Ces éléments sont <b>indicatifs</b> et ne constituent pas un conseil en investissement. Vérifiez les événements marqués « IA · à vérifier » auprès d'une source officielle.
+    <b>Portée et limites.</b> Les <b>dates et horaires</b> des événements macro (Fed/FOMC, inflation CPI) et des échéances sur dérivés (options crypto, options et <i>triple witching</i> sur indices) sont issus des calendriers officiels publiés à l'avance et convertis automatiquement en heure de Paris. Les <b>attentes et rumeurs</b>, les <b>scénarios</b>, le <b>biais anticipé</b>, l'<b>amplitude</b> et la <b>synthèse</b> sont générés par Claude au moment où vous cliquez : ils reflètent sa base de connaissances (qui comporte une date de coupure) et non des données de marché en direct. Les rumeurs de marché sont par nature invérifiables et parfois fausses ; un artefact ne peut pas interroger le web ni afficher le cours en temps réel. Le biais indiqué décrit le penchant le plus probable <b>si les attentes se confirment</b> — la direction réelle dépend de l'écart avec ce qui est déjà intégré au cours. Ces éléments sont <b>indicatifs</b> et ne constituent pas un conseil en investissement. Vérifiez les événements marqués « IA · à vérifier » auprès d'une source officielle.
   </p>
 </div>
 
@@ -412,6 +414,10 @@
     or: {
       cpi: "Publication à 8h30 ET. Effet ambigu pour l'or : couverture contre l'inflation, mais un chiffre fort renforce le dollar et les taux réels (souvent baissier à court terme).",
       fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (taux réels plus bas, dollar plus faible) est habituellement haussier pour l'or ; un ton restrictif, baissier."
+    },
+    sp500: {
+      cpi: "Publication à 8h30 ET. Une inflation plus forte qu'attendu pèse généralement sur les actions (taux plus hauts, valorisations sous pression) ; plus faible, elle les soutient.",
+      fomc: "Décision à 14h ET, conférence à 14h30. Un ton accommodant (baisse de taux, liquidité) est habituellement porteur pour le S&P 500 ; un ton restrictif, défavorable."
     }
   };
 
@@ -422,7 +428,10 @@
            ajouts: "emploi US (NFP), PCE, halving, échéances réglementaires, déblocages de jetons" },
     or:  { nom: "l'or (XAU/USD)", court: "l'or", glyph: "Au", coinClass: "or",
            synthese: "politique monétaire, taux d'intérêt réels, dollar (DXY), achats des banques centrales, tensions géopolitiques, demande de valeur refuge",
-           ajouts: "emploi US (NFP), PCE, réunions de la BCE, échéances d'options COMEX sur l'or" }
+           ajouts: "emploi US (NFP), PCE, réunions de la BCE, échéances d'options COMEX sur l'or" },
+    sp500: { nom: "l'indice S&P 500", court: "le S&P 500", glyph: "500", coinClass: "sp",
+           synthese: "politique monétaire, rendement du 10 ans US, résultats d'entreprises (earnings), méga-capitalisations technologiques, données d'emploi, risque géopolitique",
+           ajouts: "emploi US (NFP), PCE, saison des résultats (grandes capitalisations), réunions de la BCE" }
   };
 
   // ---- Échéances mensuelles d'options BTC : dernier vendredi du mois, 08h00 UTC ----
@@ -451,6 +460,37 @@
     return out;
   }
 
+  // ---- Échéances S&P 500 : 3e vendredi du mois, clôture 16h00 ET ----
+  function thirdFriday(year, month) { // month 0-11 → jour du mois
+    var day = new Date(Date.UTC(year, month, 1)).getUTCDay();
+    var firstFri = 1 + ((5 - day + 7) % 7);
+    return firstFri + 14;
+  }
+  function etToUTC(year, month, dom, hourET) {
+    // Approximation valable pour un 3e vendredi : EDT (UTC-4) de mars à octobre, EST (UTC-5) sinon.
+    var offset = (month >= 2 && month <= 9) ? 4 : 5;
+    return new Date(Date.UTC(year, month, dom, hourET + offset, 0, 0));
+  }
+  function buildIndexExpiries() {
+    var now = new Date(), out = [];
+    for (var i = 0; i < 4; i++) {
+      var ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+      var y = ref.getUTCFullYear(), m = ref.getUTCMonth();
+      var d = etToUTC(y, m, thirdFriday(y, m), 16);
+      var triple = (m === 2 || m === 5 || m === 8 || m === 11); // mars/juin/sept/déc
+      out.push({
+        id: "opex-" + y + "-" + m,
+        iso: d.toISOString(),
+        titre: triple ? "Triple witching (échéance trimestrielle)" : "Expiration mensuelle des options (OpEx)",
+        cat: "Dérivés indices",
+        note: triple
+          ? "Expiration simultanée des futures et options sur indices et actions (clôture 16h ET) : volumes très élevés et volatilité marquée."
+          : "Expiration mensuelle des options (3e vendredi, clôture 16h ET) : regain de volatilité et effets de positionnement (gamma)."
+      });
+    }
+    return out;
+  }
+
   function mkEvent(id, iso, titre, cat, note) {
     return {
       id: id, ts: new Date(iso), titre: titre, cat: cat, note: note,
@@ -464,14 +504,17 @@
     });
     if (asset === "btc") {
       buildExpiries().forEach(function (e) { list.push(mkEvent(e.id, e.iso, e.titre, e.cat, e.note)); });
+    } else if (asset === "sp500") {
+      buildIndexExpiries().forEach(function (e) { list.push(mkEvent(e.id, e.iso, e.titre, e.cat, e.note)); });
     }
     return list;
   }
 
   // ---- État (par actif) ----
   var STATE = {
-    btc: { events: buildBase("btc"), ai: [], synth: null },
-    or:  { events: buildBase("or"),  ai: [], synth: null }
+    btc:   { events: buildBase("btc"),   ai: [], synth: null },
+    or:    { events: buildBase("or"),    ai: [], synth: null },
+    sp500: { events: buildBase("sp500"), ai: [], synth: null }
   };
   var current = "btc";
 
